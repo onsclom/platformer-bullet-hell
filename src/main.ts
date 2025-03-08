@@ -37,7 +37,8 @@ const state = {
     width: initCamera.width / levelDimension,
     height: initCamera.height / levelDimension,
 
-    jumpStrength: 50,
+    jumpStrength: 75,
+
     dy: 0,
     speed: 50,
   },
@@ -62,6 +63,7 @@ const state = {
 };
 
 const keysDown = new Set<string>();
+const justReleased = new Set<string>();
 
 //Make controls using wasd
 document.addEventListener("keydown", (event) => {
@@ -70,6 +72,7 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("keyup", (event) => {
   keysDown.delete(event.key);
+  justReleased.add(event.key);
 });
 
 let previousTime = performance.now();
@@ -101,6 +104,16 @@ function raf() {
   const physicTick = 1000 / physicHz;
   // PHYSICS LOOP
   //////////////////
+
+  // process inputs
+  if (justReleased.has(" ")) {
+    console.log(state.player.dy);
+    if (state.player.dy > 0) {
+      state.player.dy /= 2;
+    }
+  }
+  justReleased.clear();
+
   while (state.physicTimeToProcess > physicTick) {
     state.physicTimeToProcess -= physicTick;
     const dt = physicTick;
@@ -114,31 +127,20 @@ function raf() {
       });
     }
 
-    if (keysDown.has(" ")) {
-      state.player.dy = state.player.jumpStrength;
-    }
-
-    // keep prev player position
-    const prevX = state.player.x;
-    const prevY = state.player.y;
-    // attempt movement in X axis
+    // move in X axis
+    // if movements collides, resolve against that collision
     let dx = 0;
     if (keysDown.has("a")) dx -= 1;
     if (keysDown.has("d")) dx += 1;
-    const goalX = state.player.x + dx * (dt / 1000) * state.player.speed;
-    // if movements collides, resolve against that collision
     {
-      const playerGoalPos = {
-        x: goalX,
-        y: state.player.y,
-      };
+      state.player.x += dx * (dt / 1000) * state.player.speed;
       const topLeftTileOnMap = { x: -50, y: 50 };
       const playerTopLeftTile = {
         x: Math.floor(
-          (playerGoalPos.x - topLeftTileOnMap.x) / state.player.width,
+          (state.player.x - topLeftTileOnMap.x) / state.player.width,
         ),
         y: Math.floor(
-          (topLeftTileOnMap.y - playerGoalPos.y) / state.player.height,
+          (topLeftTileOnMap.y - state.player.y) / state.player.height,
         ),
       };
       const playerTopLeftTileIndex =
@@ -149,7 +151,6 @@ function raf() {
         playerTopLeftTileIndex + levelDimension,
         playerTopLeftTileIndex + levelDimension + 1,
       ];
-      let collided = false;
       for (const tileIndex of tileIndexesThePlayerIsPossiblyTouching) {
         const tile = state.level[tileIndex];
         if (tile === "solid") {
@@ -165,12 +166,12 @@ function raf() {
             y: tileTopLeft.y - state.player.height,
           };
           const playerBottomRight = {
-            x: playerGoalPos.x + state.player.width,
-            y: playerGoalPos.y - state.player.height,
+            x: state.player.x + state.player.width,
+            y: state.player.y - state.player.height,
           };
           const playerTopLeft = {
-            x: playerGoalPos.x,
-            y: playerGoalPos.y,
+            x: state.player.x,
+            y: state.player.y,
           };
           if (
             playerBottomRight.x > tileTopLeft.x &&
@@ -178,98 +179,102 @@ function raf() {
             playerTopLeft.x < tileBottomRight.x &&
             playerTopLeft.y > tileBottomRight.y
           ) {
-            collided = true;
-            // collision
-            const xOverlap = Math.min(
-              playerBottomRight.x - tileTopLeft.x,
-              tileBottomRight.x - playerTopLeft.x,
-            );
-            const yOverlap = Math.min(
-              tileTopLeft.y - playerBottomRight.y,
-              playerTopLeft.y - tileBottomRight.y,
-            );
-            if (xOverlap < yOverlap) {
-              // resolve against x
-              if (dx > 0) {
-                state.player.x = tileTopLeft.x - state.player.width;
-              } else {
-                state.player.x = tileBottomRight.x;
-              }
+            // resolve against x
+            if (dx > 0) {
+              state.player.x = tileTopLeft.x - state.player.width;
             } else {
-              // resolve against y
-              state.player.y = tileTopLeft.y;
-              state.player.dy = 0;
+              state.player.x = tileBottomRight.x;
             }
           }
         }
-      }
-      if (!collided) {
-        state.player.x = goalX;
       }
     }
 
     // attempt movement in Y axis
     // if movements collides, resolve against that collision AND set dy to 0
 
-    // state.player.dy -= (state.gravity * dt) / 1000;
-    // state.player.y += (state.player.dy * dt) / 1000;
+    state.player.dy -= state.gravity * (dt / 1000);
 
-    //   state.player.dy -= (state.gravity * dt) / 1000;
-    //   {
-    //     const topLeftTileOnMap = { x: -50, y: 50 };
+    if (state.player.dy > 0) {
+    }
 
-    //     const playerPrevX = state.player.x;
+    state.player.y += state.player.dy * (dt / 1000);
 
-    //     // apply to position
-    //     state.player.y += (state.player.dy * dt) / 1000;
+    {
+      const topLeftTileOnMap = { x: -50, y: 50 };
+      const playerTopLeftTile = {
+        x: Math.floor(
+          (state.player.x - topLeftTileOnMap.x) / state.player.width,
+        ),
+        y: Math.floor(
+          (topLeftTileOnMap.y - state.player.y) / state.player.height,
+        ),
+      };
+      const playerTopLeftTileIndex =
+        playerTopLeftTile.y * levelDimension + playerTopLeftTile.x;
+      const tileIndexesThePlayerIsPossiblyTouching = [
+        playerTopLeftTileIndex,
+        playerTopLeftTileIndex + 1,
+        playerTopLeftTileIndex + levelDimension,
+        playerTopLeftTileIndex + levelDimension + 1,
+      ];
+      for (const tileIndex of tileIndexesThePlayerIsPossiblyTouching) {
+        const tile = state.level[tileIndex];
+        if (tile === "solid") {
+          // collision
+          const tileX = tileIndex % levelDimension;
+          const tileY = Math.floor(tileIndex / levelDimension);
+          const tileTopLeft = {
+            x: topLeftTileOnMap.x + tileX * state.player.width,
+            y: topLeftTileOnMap.y - tileY * state.player.height,
+          };
+          const tileBottomRight = {
+            x: tileTopLeft.x + state.player.width,
+            y: tileTopLeft.y - state.player.height,
+          };
+          const playerBottomRight = {
+            x: state.player.x + state.player.width,
+            y: state.player.y - state.player.height,
+          };
+          const playerTopLeft = {
+            x: state.player.x,
+            y: state.player.y,
+          };
+          if (
+            playerBottomRight.x > tileTopLeft.x &&
+            playerBottomRight.y < tileTopLeft.y &&
+            playerTopLeft.x < tileBottomRight.x &&
+            playerTopLeft.y > tileBottomRight.y
+          ) {
+            // resolve against y
+            if (state.player.dy <= 0) {
+              state.player.y = tileTopLeft.y + state.player.height;
+              state.player.dy = 0;
 
-    //     // get the tiles we are possibly touching
-    //     const playerTopLeft = {
-    //       x: state.player.x,
-    //       y: state.player.y,
-    //     };
-
-    //     const playerTopLeftTile = {
-    //       x: Math.floor(
-    //         (playerTopLeft.x - topLeftTileOnMap.x) / state.player.width,
-    //       ),
-    //       y: Math.floor(
-    //         (topLeftTileOnMap.y - playerTopLeft.y) / state.player.height,
-    //       ),
-    //     };
-    //     const playerTopLeftTileIndex =
-    //       playerTopLeftTile.y * levelDimension + playerTopLeftTile.x;
-
-    //     const tileIndexesThePlayerIsPossiblyTouching = [
-    //       playerTopLeftTileIndex,
-    //       playerTopLeftTileIndex + 1,
-    //       playerTopLeftTileIndex + levelDimension,
-    //       playerTopLeftTileIndex + levelDimension + 1,
-    //     ];
-
-    //     for (const tileIndex of tileIndexesThePlayerIsPossiblyTouching) {
-    //       const tile = state.level[tileIndex];
-    //       if (tile === "solid") {
-    //         // collision
-    //         const tileX = tileIndex % levelDimension;
-    //         const tileY = Math.floor(tileIndex / levelDimension);
-
-    //         console.log("TOUCHING");
-    //       } else {
-    //         console.log("NOT TOUCHING");
-    //       }
-    //     }
-    //   }
+              if (keysDown.has(" ")) {
+                state.player.dy = state.player.jumpStrength;
+              }
+            } else {
+              state.player.y = tileBottomRight.y;
+              state.player.dy = 0;
+            }
+          }
+        }
+      }
+    }
   }
 
   // DRAW
   //////////////////
 
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvasRect.width, canvasRect.height);
+
   ctx.translate(letterBoxed.x + minSide / 2, letterBoxed.y + minSide / 2);
   ctx.scale(minSide / state.camera.width, minSide / state.camera.height);
   ctx.translate(-state.camera.x, -state.camera.y);
 
-  ctx.fillStyle = "green";
+  ctx.fillStyle = "black";
   fillRect(ctx, -50, 50, 50, -50);
 
   const tileSize = state.camera.width / levelDimension;
@@ -281,7 +286,7 @@ function raf() {
     const x = i % levelDimension;
     const y = Math.floor(i / levelDimension);
     if (cell === "solid") {
-      ctx.fillStyle = "black";
+      ctx.fillStyle = "green";
 
       // get the correct random corners
       const r1 = state.randomEffect.corners[y * (levelDimension + 1) + x];
@@ -309,7 +314,7 @@ function raf() {
       );
     }
   });
-  ctx.fillStyle = "red";
+  ctx.fillStyle = "#99f";
   fillRect(
     ctx,
     state.player.x,
