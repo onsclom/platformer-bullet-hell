@@ -10,22 +10,26 @@ document.body.appendChild(canvas);
 
 let previousTime = performance.now();
 function raf() {
-  requestAnimationFrame(raf);
+  console.time("frame");
+  {
+    requestAnimationFrame(raf);
 
-  const now = performance.now();
-  const dt = now - previousTime;
-  previousTime = now;
+    const now = performance.now();
+    const dt = now - previousTime;
+    previousTime = now;
 
-  const canvasRect = canvas.getBoundingClientRect();
-  canvas.width = canvasRect.width * devicePixelRatio;
-  canvas.height = canvasRect.height * devicePixelRatio;
+    const canvasRect = canvas.getBoundingClientRect();
+    canvas.width = canvasRect.width * devicePixelRatio;
+    canvas.height = canvasRect.height * devicePixelRatio;
 
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.scale(devicePixelRatio, devicePixelRatio);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
 
-  update(dt);
-  draw(ctx);
+    update(dt);
+    draw(ctx);
+  }
+  console.timeEnd("frame");
 }
 
 // f to fullscreen
