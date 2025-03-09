@@ -1,0 +1,10 @@
+- level should randomly generate!!
+  - cool animations between changing stages
+  - think pokemon stadium
+
+- on death, zoom into player??
+
+- what if there's stages? rougelite style, pick power ups :
+  - speed buff
+  - double jump
+  - wall jump
