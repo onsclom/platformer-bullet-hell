@@ -77,106 +77,7 @@ export function update(dt: number) {
         corner.y = Math.random() - 0.5;
       });
     }
-
-    function moveAndSlidePlayer() {
-      // handle X-axis
-      let dx = 0;
-      if (keysDown.has("a")) dx -= 1;
-      if (keysDown.has("d")) dx += 1;
-      {
-        state.player.x += dx * (dt / 1000) * state.player.speed;
-        const tileIndexesThePlayerIsPossiblyTouching =
-          tilesIndexesAroundPlayer();
-        for (const tileIndex of tileIndexesThePlayerIsPossiblyTouching) {
-          const tile = state.level[tileIndex];
-          if (tile === "solid") {
-            // collision
-            const tileX = tileIndex % levelDimension;
-            const tileY = Math.floor(tileIndex / levelDimension);
-            const tileTopLeft = {
-              x: topLeftTileOnMap.x + tileX * state.player.width,
-              y: topLeftTileOnMap.y - tileY * state.player.height,
-            };
-            const tileBottomRight = {
-              x: tileTopLeft.x + state.player.width,
-              y: tileTopLeft.y - state.player.height,
-            };
-            const playerBottomRight = {
-              x: state.player.x + state.player.width,
-              y: state.player.y - state.player.height,
-            };
-            const playerTopLeft = {
-              x: state.player.x,
-              y: state.player.y,
-            };
-            if (
-              playerBottomRight.x > tileTopLeft.x &&
-              playerBottomRight.y < tileTopLeft.y &&
-              playerTopLeft.x < tileBottomRight.x &&
-              playerTopLeft.y > tileBottomRight.y
-            ) {
-              // resolve against x
-              if (dx > 0) {
-                state.player.x = tileTopLeft.x - state.player.width;
-              } else {
-                state.player.x = tileBottomRight.x;
-              }
-            }
-          }
-        }
-      }
-
-      state.player.dy -= state.gravity * (dt / 1000);
-      state.player.y += state.player.dy * (dt / 1000);
-      {
-        const tileIndexesThePlayerIsPossiblyTouching =
-          tilesIndexesAroundPlayer();
-        for (const tileIndex of tileIndexesThePlayerIsPossiblyTouching) {
-          const tile = state.level[tileIndex];
-          if (tile === "solid") {
-            // collision
-            const tileX = tileIndex % levelDimension;
-            const tileY = Math.floor(tileIndex / levelDimension);
-            const tileTopLeft = {
-              x: topLeftTileOnMap.x + tileX * state.player.width,
-              y: topLeftTileOnMap.y - tileY * state.player.height,
-            };
-            const tileBottomRight = {
-              x: tileTopLeft.x + state.player.width,
-              y: tileTopLeft.y - state.player.height,
-            };
-            const playerBottomRight = {
-              x: state.player.x + state.player.width,
-              y: state.player.y - state.player.height,
-            };
-            const playerTopLeft = {
-              x: state.player.x,
-              y: state.player.y,
-            };
-            if (
-              playerBottomRight.x > tileTopLeft.x &&
-              playerBottomRight.y < tileTopLeft.y &&
-              playerTopLeft.x < tileBottomRight.x &&
-              playerTopLeft.y > tileBottomRight.y
-            ) {
-              // resolve against y
-              if (state.player.dy <= 0) {
-                state.player.y = tileTopLeft.y + state.player.height;
-                state.player.dy = 0;
-
-                if (keysDown.has(" ")) {
-                  state.player.dy = state.player.jumpStrength;
-                }
-              } else {
-                state.player.y = tileBottomRight.y;
-                state.player.dy = 0;
-              }
-            }
-          }
-        }
-      }
-    }
-    moveAndSlidePlayer();
+    moveAndSlidePlayer(dt);
   }
 }
 
@@ -225,6 +126,112 @@ export function draw(ctx: CanvasRenderingContext2D) {
     state.player.x + state.player.width,
     state.player.y - state.player.height,
   );
+}
+
+function moveAndSlidePlayer(dt: number) {
+  /*
+    TODO:
+    https://x.com/MaddyThorson/status/1238338574220546049
+    - coyote timing
+    - jump buffering
+    - jump wall corner correction
+    - ground corner correction
+  */
+
+  // handle X-axis
+  let dx = 0;
+  if (keysDown.has("a")) dx -= 1;
+  if (keysDown.has("d")) dx += 1;
+  {
+    state.player.x += dx * (dt / 1000) * state.player.speed;
+    const tileIndexesThePlayerIsPossiblyTouching = tilesIndexesAroundPlayer();
+    for (const tileIndex of tileIndexesThePlayerIsPossiblyTouching) {
+      const tile = state.level[tileIndex];
+      if (tile === "solid") {
+        // collision
+        const tileX = tileIndex % levelDimension;
+        const tileY = Math.floor(tileIndex / levelDimension);
+        const tileTopLeft = {
+          x: topLeftTileOnMap.x + tileX * state.player.width,
+          y: topLeftTileOnMap.y - tileY * state.player.height,
+        };
+        const tileBottomRight = {
+          x: tileTopLeft.x + state.player.width,
+          y: tileTopLeft.y - state.player.height,
+        };
+        const playerBottomRight = {
+          x: state.player.x + state.player.width,
+          y: state.player.y - state.player.height,
+        };
+        const playerTopLeft = {
+          x: state.player.x,
+          y: state.player.y,
+        };
+        if (
+          playerBottomRight.x > tileTopLeft.x &&
+          playerBottomRight.y < tileTopLeft.y &&
+          playerTopLeft.x < tileBottomRight.x &&
+          playerTopLeft.y > tileBottomRight.y
+        ) {
+          // resolve against x
+          if (dx > 0) {
+            state.player.x = tileTopLeft.x - state.player.width;
+          } else {
+            state.player.x = tileBottomRight.x;
+          }
+        }
+      }
+    }
+  }
+
+  state.player.dy -= state.gravity * (dt / 1000);
+  state.player.y += state.player.dy * (dt / 1000);
+  {
+    const tileIndexesThePlayerIsPossiblyTouching = tilesIndexesAroundPlayer();
+    for (const tileIndex of tileIndexesThePlayerIsPossiblyTouching) {
+      const tile = state.level[tileIndex];
+      if (tile === "solid") {
+        // collision
+        const tileX = tileIndex % levelDimension;
+        const tileY = Math.floor(tileIndex / levelDimension);
+        const tileTopLeft = {
+          x: topLeftTileOnMap.x + tileX * state.player.width,
+          y: topLeftTileOnMap.y - tileY * state.player.height,
+        };
+        const tileBottomRight = {
+          x: tileTopLeft.x + state.player.width,
+          y: tileTopLeft.y - state.player.height,
+        };
+        const playerBottomRight = {
+          x: state.player.x + state.player.width,
+          y: state.player.y - state.player.height,
+        };
+        const playerTopLeft = {
+          x: state.player.x,
+          y: state.player.y,
+        };
+        if (
+          playerBottomRight.x > tileTopLeft.x &&
+          playerBottomRight.y < tileTopLeft.y &&
+          playerTopLeft.x < tileBottomRight.x &&
+          playerTopLeft.y > tileBottomRight.y
+        ) {
+          // resolve against y
+          if (state.player.dy <= 0) {
+            state.player.y = tileTopLeft.y + state.player.height;
+            state.player.dy = 0;
+
+            if (keysDown.has(" ")) {
+              state.player.dy = state.player.jumpStrength;
+            }
+          } else {
+            state.player.y = tileBottomRight.y;
+            state.player.dy = 0;
+          }
+        }
+      }
+    }
+  }
 }
 
 function fillRect(
