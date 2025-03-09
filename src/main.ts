@@ -28,4 +28,11 @@ function raf() {
   draw(ctx);
 }
 
+// f to fullscreen
+document.addEventListener("keydown", (e) => {
+  if (e.key === "f") {
+    canvas.requestFullscreen();
+  }
+});
+
 raf();

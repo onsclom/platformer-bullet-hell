@@ -10,9 +10,12 @@ const initCamera = {
 };
 const topLeftTileOnMap = { x: -initCamera.width / 2, y: initCamera.height / 2 };
 
+const MAX_TRIANGLE_ENEMIES = 1000;
+
 const state = {
   camera: initCamera,
   gravity: 250,
+  score: 0,
 
   physicTimeToProcess: 0,
 
@@ -26,6 +29,28 @@ const state = {
 
     dy: 0,
     speed: 50,
+
+    hitboxRadius: 0.5,
+
+    alive: true,
+  },
+
+  triangle: {
+    enemies: Array.from({
+      length: MAX_TRIANGLE_ENEMIES,
+    }).map(() => ({
+      active: false,
+      shooting: false,
+      x: 0,
+      y: 0,
+      countdown: 0,
+      angle: 0,
+      radius: 2,
+    })),
+    num: 0,
+    spawnRateMs: 500,
+    speed: 1.5,
+    spawnTimer: 0,
   },
 
   level: level
@@ -48,6 +73,9 @@ const state = {
 };
 
 export function update(dt: number) {
+  if (state.player.alive) {
+    state.score += dt;
+  }
   state.physicTimeToProcess += dt;
   const physicHz = 500;
   const physicTick = 1000 / physicHz;
@@ -79,6 +107,58 @@ export function update(dt: number) {
     }
     moveAndSlidePlayer(dt);
   }
+
+  // HANDLE TRIANGLE ENEMY STUFF
+  //////////////////
+
+  // spawn triangles
+  state.triangle.spawnTimer += dt;
+  if (state.triangle.spawnTimer > state.triangle.spawnRateMs) {
+    state.triangle.spawnTimer -= state.triangle.spawnRateMs;
+    state.triangle.num = (state.triangle.num + 1) % MAX_TRIANGLE_ENEMIES;
+
+    state.triangle.enemies[state.triangle.num]!.active = true;
+    state.triangle.enemies[state.triangle.num]!.x =
+      Math.random() * state.camera.width - state.camera.width / 2;
+    state.triangle.enemies[state.triangle.num]!.y =
+      Math.random() * state.camera.height - state.camera.height / 2;
+    state.triangle.enemies[state.triangle.num]!.countdown = 2000;
+  }
+
+  // update all alive triangles
+  state.triangle.enemies.forEach((enemy) => {
+    if (enemy.active) {
+      enemy.countdown -= dt;
+      if (enemy.shooting === false && enemy.countdown <= 0) {
+        // LOCK ONTO PLAYER SHOOT AT THEM
+        enemy.shooting = true;
+        enemy.angle = Math.atan2(
+          state.player.y - state.player.height / 2 - enemy.y,
+          state.player.x + state.player.width / 2 - enemy.x,
+        );
+      }
+
+      if (enemy.shooting) {
+        // move towards angle
+        const speed = 0.05 * state.triangle.speed;
+        enemy.x += Math.cos(enemy.angle) * speed * dt;
+        enemy.y += Math.sin(enemy.angle) * speed * dt;
+      }
+
+      const distToPlayer = Math.hypot(
+        state.player.x + state.player.width / 2 - enemy.x,
+        state.player.y - state.player.width / 2 - enemy.y,
+      );
+
+      if (enemy.shooting) {
+        const touchingPlayer =
+          distToPlayer < state.player.hitboxRadius + enemy.radius;
+        if (touchingPlayer) {
+          state.player.alive = false;
+        }
+      }
+    }
+  });
 }
 
 export function draw(ctx: CanvasRenderingContext2D) {
@@ -119,6 +199,9 @@ export function draw(ctx: CanvasRenderingContext2D) {
     }
   });
   ctx.fillStyle = "#99f";
+
+  // PLAYER
+  //////////////////
   fillRect(
     ctx,
     state.player.x,
@@ -126,6 +209,80 @@ export function draw(ctx: CanvasRenderingContext2D) {
     state.player.x + state.player.width,
     state.player.y - state.player.height,
   );
+  // draw player hitbox
+  ctx.beginPath();
+  ctx.fillStyle = "#808"; //rgb
+  ctx.arc(
+    state.player.x + state.player.width / 2,
+    -state.player.y + state.player.height / 2,
+    state.player.hitboxRadius,
+    0,
+    2 * Math.PI,
+  );
+  ctx.fill();
+
+  // ENEMIES
+  //////////////////
+  state.triangle.enemies.forEach((enemy) => {
+    if (enemy.active) {
+      const rotationAngle = performance.now() / 100;
+
+      ctx.save();
+      ctx.translate(enemy.x, -enemy.y);
+
+      if (enemy.countdown > 0) {
+        ctx.globalAlpha = 0.5;
+        // 2000
+        const timeRemainingToSpawn = Math.max(enemy.countdown, 0);
+        const scale = 1 - timeRemainingToSpawn / 2000;
+        ctx.scale(scale, scale);
+      }
+
+      // 2 * PI
+      ctx.fillStyle = "red";
+      ctx.rotate(rotationAngle);
+      const point1 = 0;
+      const point2 = (2 * Math.PI) / 3;
+      const point3 = (4 * Math.PI) / 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(
+        Math.cos(point1) * enemy.radius,
+        Math.sin(point1) * enemy.radius,
+      );
+      ctx.lineTo(
+        Math.cos(point2) * enemy.radius,
+        Math.sin(point2) * enemy.radius,
+      );
+      ctx.lineTo(
+        Math.cos(point3) * enemy.radius,
+        Math.sin(point3) * enemy.radius,
+      );
+      ctx.lineTo(
+        Math.cos(point1) * enemy.radius,
+        Math.sin(point1) * enemy.radius,
+      );
+
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  });
+
+  if (state.player.alive === false) {
+    ctx.fillStyle = "red";
+    ctx.font = "20px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText("WASTED", 0, 0);
+  }
+
+  // SCORE
+  ctx.fillStyle = "white";
+  ctx.font = "5px Arial";
+
+  ctx.fillText(`${Math.floor(state.score / 1000)}`, 0, -40);
 }
 
 function moveAndSlidePlayer(dt: number) {
