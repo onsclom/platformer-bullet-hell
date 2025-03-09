@@ -11,9 +11,9 @@ const initCamera = {
 const topLeftTileOnMap = { x: -initCamera.width / 2, y: initCamera.height / 2 };
 
 const MAX_TRIANGLE_ENEMIES = 1000;
-
 const initJumpBufferTime = 150;
-const state = {
+
+const initGameState = {
   camera: initCamera,
   gravity: 250,
   score: 0,
@@ -94,6 +94,8 @@ const state = {
     })),
   },
 };
+
+const state = structuredClone(initGameState);
 
 export function update(dt: number) {
   if (state.player.alive) {
@@ -434,8 +436,6 @@ function moveAndSlidePlayer(dt: number) {
     }
   }
 
-  console.log(state.player.timeSinceJumpBuffered);
-
   // allow jumping when grounded
   if (
     justPressed.has(" ") ||
@@ -546,19 +546,4 @@ function assert<T>(value: T): asserts value {
   if (!value) {
     throw new Error("assertion failed");
   }
-}
-
-function tilesIndexesAroundPlayer() {
-  const playerTopLeftTile = {
-    x: Math.floor((state.player.x - topLeftTileOnMap.x) / state.player.width),
-    y: Math.floor((topLeftTileOnMap.y - state.player.y) / state.player.height),
-  };
-  const playerTopLeftTileIndex =
-    playerTopLeftTile.y * levelDimension + playerTopLeftTile.x;
-  return [
-    playerTopLeftTileIndex,
-    playerTopLeftTileIndex + 1,
-    playerTopLeftTileIndex + levelDimension,
-    playerTopLeftTileIndex + levelDimension + 1,
-  ];
 }

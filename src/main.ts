@@ -8,9 +8,11 @@ canvas.style.top = "0";
 canvas.style.left = "0";
 document.body.appendChild(canvas);
 
+const LOG_FRAME_TIMES = false;
+
 let previousTime = performance.now();
 function raf() {
-  console.time("frame");
+  if (LOG_FRAME_TIMES) console.time("frame");
   {
     requestAnimationFrame(raf);
 
@@ -29,7 +31,7 @@ function raf() {
     update(dt);
     draw(ctx);
   }
-  console.timeEnd("frame");
+  if (LOG_FRAME_TIMES) console.timeEnd("frame");
 }
 
 // f to fullscreen
