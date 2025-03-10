@@ -8,6 +8,8 @@ const initCamera = {
   height: 100,
   x: 0,
   y: 0,
+
+  shakeFactor: 1, // 0 to 1
 };
 const topLeftTileOnMap = { x: -initCamera.width / 2, y: initCamera.height / 2 };
 const tileSize = initCamera.width / levelDimension;
@@ -86,6 +88,17 @@ const initGameState = {
   coin: {
     x: 0,
     y: 0,
+
+    particles: Array.from({ length: 1000 }, () => ({
+      lifetime: 0,
+      lifespan: 400,
+      x: 0,
+      y: 0,
+      angle: 0,
+      speed: 0,
+      color: "",
+    })),
+    particleNum: 0,
   },
 
   level: Array.from({ length: levelDimension ** 2 }, (_, i) => {
@@ -156,6 +169,36 @@ function physicTick(dt: number) {
     clearInputs();
   }
 
+  {
+    // random effect juice
+    state.randomEffect.timeSinceLastChange += dt;
+    const timePerChange = 1000 / state.randomEffect.changesPerSecond;
+    if (state.randomEffect.timeSinceLastChange > timePerChange) {
+      state.randomEffect.timeSinceLastChange -= timePerChange;
+      state.randomEffect.corners.forEach((corner) => {
+        corner.x = Math.random() - 0.5;
+        corner.y = Math.random() - 0.5;
+      });
+    }
+  }
+
+  // update particles
+  state.coin.particles.forEach((particle) => {
+    if (particle.lifetime > 0) {
+      particle.lifetime -= dt;
+      const dx = Math.cos(particle.angle) * particle.speed * dt;
+      const dy = Math.sin(particle.angle) * particle.speed * dt;
+      particle.x += dx;
+      particle.y += dy;
+    }
+  });
+
+  {
+    // screen shake
+    const shakeLength = 0.1;
+    state.camera.shakeFactor *= (0.9 * shakeLength) ** (dt / 1000);
+  }
+
   if (!state.player.alive) {
     return; // freeze when dead
   }
@@ -205,6 +248,16 @@ export function draw(ctx: CanvasRenderingContext2D) {
   ctx.translate(letterBoxed.x + minSide / 2, letterBoxed.y + minSide / 2);
   ctx.scale(minSide / state.camera.width, minSide / state.camera.height);
   ctx.translate(-state.camera.x, -state.camera.y);
+
+  // CAMERA SHAKE
+  //////////////////
+
+  const strength = 0.5;
+  const xShake =
+    Math.cos(performance.now() * 0.05) * state.camera.shakeFactor * strength;
+  const yShake =
+    Math.sin(performance.now() * 0.0503) * state.camera.shakeFactor * strength;
+  ctx.translate(xShake, yShake);
 
   ctx.save();
   ctx.globalAlpha = 0.95;
@@ -290,6 +343,22 @@ export function draw(ctx: CanvasRenderingContext2D) {
   ctx.arc(0, 0, coinRadius, 0, 2 * Math.PI);
   ctx.restore();
   ctx.fill();
+
+  // draw coin particles
+  state.coin.particles.forEach((particle) => {
+    if (particle.lifetime > 0) {
+      ctx.save();
+      const size = particle.lifetime / particle.lifespan;
+      ctx.beginPath();
+
+      ctx.translate(particle.x, -particle.y);
+      ctx.scale(size, size);
+      ctx.arc(0, 0, 0.5, 0, 2 * Math.PI);
+      ctx.fillStyle = particle.color;
+      ctx.fill();
+      ctx.restore();
+    }
+  });
 
   // ENEMIES
   //////////////////
@@ -394,17 +463,6 @@ export function draw(ctx: CanvasRenderingContext2D) {
 }
 
 function playingPhysicTick(dt: number) {
-  state.randomEffect.timeSinceLastChange += dt;
-  const timePerChange = 1000 / state.randomEffect.changesPerSecond;
-
-  if (state.randomEffect.timeSinceLastChange > timePerChange) {
-    state.randomEffect.timeSinceLastChange -= timePerChange;
-    state.randomEffect.corners.forEach((corner) => {
-      corner.x = Math.random() - 0.5;
-      corner.y = Math.random() - 0.5;
-    });
-  }
-
   moveAndSlidePlayer(dt);
 
   const coinInWorldPos = {
@@ -422,8 +480,26 @@ function playingPhysicTick(dt: number) {
 
   if (playerTouchingCoin) {
     state.score += 1;
-    randomizeCoinPosition();
+    state.camera.shakeFactor += 0.4;
     playSound("coin");
+    {
+      // spawn coin particles
+      const particlesToSpawn = 50;
+      for (let i = 0; i < particlesToSpawn; i++) {
+        const particle = state.coin.particles[state.coin.particleNum]!;
+        particle.x =
+          state.coin.x * tileSize + tileSize / 2 - state.camera.width / 2;
+        particle.y =
+          -state.coin.y * tileSize - tileSize / 2 + state.camera.height / 2;
+        particle.lifetime = particle.lifespan;
+        particle.angle = Math.random() * Math.PI * 2;
+        particle.speed = Math.random() * 0.05;
+        particle.color = `hsl(${Math.random() * 360}, 100%, 80%)`;
+        state.coin.particleNum = (state.coin.particleNum + 1) % 1000;
+      }
+    }
+
+    randomizeCoinPosition();
   } else {
   }
 
@@ -494,6 +570,7 @@ function playingPhysicTick(dt: number) {
         if (touchingPlayer) {
           state.player.alive = false;
           playSound("death");
+          state.camera.shakeFactor = 1;
         }
       }
     }
@@ -679,26 +756,6 @@ function fillQuad(
   ctx.lineTo(x4, -y4);
   ctx.closePath();
   ctx.fill();
-}
-
-function strokeQuad(
-  ctx: CanvasRenderingContext2D,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  x3: number,
-  y3: number,
-  x4: number,
-  y4: number,
-) {
-  ctx.beginPath();
-  ctx.moveTo(x1, -y1);
-  ctx.lineTo(x2, -y2);
-  ctx.lineTo(x3, -y3);
-  ctx.lineTo(x4, -y4);
-  ctx.closePath();
-  ctx.stroke();
 }
 
 function drawTile(
