@@ -1,5 +1,6 @@
 import level from "./level.txt?raw";
 import { keysDown, justReleased, justPressed, clearInputs } from "./input";
+import { playSound } from "./audio";
 
 const levelDimension = 20;
 const initCamera = {
@@ -9,6 +10,7 @@ const initCamera = {
   y: 0,
 };
 const topLeftTileOnMap = { x: -initCamera.width / 2, y: initCamera.height / 2 };
+const tileSize = initCamera.width / levelDimension;
 
 const MAX_TRIANGLE_ENEMIES = 100;
 const initJumpBufferTime = 150;
@@ -16,7 +18,7 @@ const initJumpBufferTime = 150;
 const levelLoadAnimation = {
   type: "loading" as const,
   time: 0,
-  loadAnimationLength: 2000,
+  loadAnimationLength: 1000,
 };
 
 const playing = {
@@ -81,25 +83,29 @@ const initGameState = {
     spawnTimer: 0,
   },
 
-  level:
-    // Array.from({ length: levelDimension ** 2 }, (_, i) => {
-    //   const x = i % levelDimension;
-    //   const y = Math.floor(i / levelDimension);
-    //   if (
-    //     x === 0 ||
-    //     y === 0 ||
-    //     x === levelDimension - 1 ||
-    //     y === levelDimension - 1
-    //   ) {
-    //     return "solid";
-    //   }
-    //   return Math.random() > 0.1 ? "empty" : "solid";
-    // }),
-    level
-      .split("\n")
-      .flatMap((row) =>
-        row.split("").map((cell) => (cell === " " ? "empty" : "solid")),
-      ),
+  coin: {
+    x: 0,
+    y: 0,
+  },
+
+  level: Array.from({ length: levelDimension ** 2 }, (_, i) => {
+    const x = i % levelDimension;
+    const y = Math.floor(i / levelDimension);
+    if (
+      x === 0 ||
+      y === 0 ||
+      x === levelDimension - 1 ||
+      y === levelDimension - 1
+    ) {
+      return "solid";
+    }
+    return Math.random() > 0.1 ? "empty" : "solid";
+  }),
+  // level
+  //   .split("\n")
+  //   .flatMap((row) =>
+  //     row.split("").map((cell) => (cell === " " ? "empty" : "solid")),
+  //   ),
 
   // tile fun visual random effect
   randomEffect: {
@@ -116,12 +122,32 @@ const initGameState = {
 
 const state = structuredClone(initGameState);
 
+function randomizeCoinPosition() {
+  while (true) {
+    const x = Math.floor(Math.random() * levelDimension);
+    const y = Math.floor(Math.random() * levelDimension);
+
+    const tileAtXY = state.level[y * levelDimension + x];
+    if (tileAtXY === "empty") {
+      state.coin.x = x;
+      state.coin.y = y;
+      break;
+    }
+  }
+}
+randomizeCoinPosition();
+
 export function update(dt: number) {
-  if (keysDown.has("r")) {
+  if (justPressed.has("r")) {
     Object.assign(state, structuredClone(initGameState));
+    randomizeCoinPosition();
+    clearInputs();
   }
 
   if (state.current.type === "loading") {
+    if (state.current.time === 0) {
+      playSound("levelLoad");
+    }
     state.current.time += dt;
 
     if (state.current.time > state.current.loadAnimationLength) {
@@ -131,8 +157,8 @@ export function update(dt: number) {
     return;
   }
 
-  if (state.player.alive) {
-    state.score += dt;
+  if (!state.player.alive) {
+    return; // freeze when dead
   }
   state.physicTimeToProcess += dt;
   const physicHz = 500;
@@ -165,6 +191,27 @@ export function update(dt: number) {
     }
 
     moveAndSlidePlayer(dt);
+
+    const coinInWorldPos = {
+      x: state.coin.x * tileSize - state.camera.width / 2,
+      y: -state.coin.y * tileSize + state.camera.height / 2,
+    };
+    // consider the coin to be the whole tile the coin is in
+    const touchingCoinX =
+      state.player.x < coinInWorldPos.x + tileSize &&
+      state.player.x + state.player.width > coinInWorldPos.x;
+    const touchingCoinY =
+      state.player.y > coinInWorldPos.y - tileSize &&
+      state.player.y - state.player.height < coinInWorldPos.y;
+    const playerTouchingCoin = touchingCoinX && touchingCoinY;
+
+    if (playerTouchingCoin) {
+      state.score += 1;
+      randomizeCoinPosition();
+      playSound("coin");
+    } else {
+    }
+
     clearInputs();
 
     // HANDLE TRIANGLE ENEMY STUFF
@@ -202,6 +249,7 @@ export function update(dt: number) {
             state.player.y - state.player.height / 2 - enemy.y,
             state.player.x + state.player.width / 2 - enemy.x,
           );
+          playSound("shoot");
         }
 
         if (enemy.shooting) {
@@ -225,9 +273,13 @@ export function update(dt: number) {
 
         if (enemy.shooting) {
           const touchingPlayer =
-            distToPlayer < state.player.hitboxRadius + enemy.radius;
+            distToPlayer <
+            state.player.hitboxRadius +
+              // be lenient to player
+              enemy.radius / 2;
           if (touchingPlayer) {
             state.player.alive = false;
+            playSound("death");
           }
         }
       }
@@ -268,6 +320,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
     const tileLoadInTime = 100;
 
     state.level.forEach((cell, i) => {
+      assert(state.current.type === "loading");
       const x = i % levelDimension;
       const y = Math.floor(i / levelDimension);
       const loadStart =
@@ -316,6 +369,29 @@ export function draw(ctx: CanvasRenderingContext2D) {
     0,
     2 * Math.PI,
   );
+  ctx.fill();
+
+  // COIN
+  //////////////////
+  ctx.fillStyle = "yellow";
+
+  const topLeftOfMap = {
+    x: -state.camera.width / 2,
+    y: state.camera.height / 2,
+  };
+  ctx.beginPath();
+  const coinRadius = 1.5;
+  ctx.save();
+  ctx.translate(
+    topLeftOfMap.x + state.coin.x * state.player.width + state.player.width / 2,
+    -topLeftOfMap.y +
+      state.coin.y * state.player.height +
+      state.player.height / 2,
+  );
+
+  ctx.scale(Math.sin(performance.now() * 0.01), 1);
+  ctx.arc(0, 0, coinRadius, 0, 2 * Math.PI);
+  ctx.restore();
   ctx.fill();
 
   // ENEMIES
@@ -369,7 +445,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
       ctx.translate(enemy.x, -enemy.y);
       ctx.fillStyle = "red";
       if (enemy.countdown > 0) {
-        ctx.globalAlpha = 0.5;
+        ctx.globalAlpha = 1;
         ctx.fillStyle = "white";
         const timeRemainingToSpawn = Math.max(enemy.countdown, 0);
         const scale = 1 - timeRemainingToSpawn / 2000;
@@ -417,7 +493,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = "white";
   ctx.font = "5px Arial";
 
-  ctx.fillText(`${Math.floor(state.score / 1000)}`, 0, -40);
+  ctx.fillText(`${state.score}`, 0, -40);
 }
 
 function moveAndSlidePlayer(dt: number) {
@@ -535,6 +611,11 @@ function moveAndSlidePlayer(dt: number) {
           if (!corrected) {
             // resolve against y
             if (state.player.dy <= 0) {
+              const landSoundThreshold = -5;
+              if (state.player.dy < landSoundThreshold) {
+                playSound("land");
+              }
+
               state.player.y = tileTopLeft.y + state.player.height;
               state.player.dy = 0;
               state.player.timeSinceGrounded = 0;
@@ -556,6 +637,8 @@ function moveAndSlidePlayer(dt: number) {
     if (state.player.timeSinceGrounded < state.player.coyoteTime) {
       state.player.dy = state.player.jumpStrength;
       state.player.timeSinceJumpBuffered = initJumpBufferTime;
+      playSound("jump");
+      console.log("ASDf");
     } else {
       if (justPressed.has(" ")) {
         state.player.timeSinceJumpBuffered = 0;
@@ -621,7 +704,6 @@ function drawTile(
   loadProgress = 1,
 ) {
   ctx.save();
-  // ctx.globalAlpha = loadProgress;
   ctx.scale(loadProgress, loadProgress);
 
   const r1 = state.randomEffect.corners[y * (levelDimension + 1) + x];
@@ -634,9 +716,9 @@ function drawTile(
   assert(r4);
 
   const topLeft = topLeftTileOnMap;
-  const tileSize = state.camera.width / levelDimension;
   const randStrength = 0.5;
   ctx.fillStyle = "green";
+
   fillQuad(
     ctx,
     topLeft.x + x * tileSize + r1.x * randStrength,
@@ -649,18 +731,95 @@ function drawTile(
     topLeft.y - (y + 1) * tileSize + r4.y * randStrength,
   );
   ctx.lineWidth = 0.5;
+
+  ctx.lineCap = "round";
   ctx.strokeStyle = "darkgreen";
-  strokeQuad(
-    ctx,
-    topLeft.x + x * tileSize + r1.x * randStrength,
-    topLeft.y - y * tileSize + r1.y * randStrength,
-    topLeft.x + (x + 1) * tileSize + r2.x * randStrength,
-    topLeft.y - y * tileSize + r2.y * randStrength,
-    topLeft.x + (x + 1) * tileSize + r3.x * randStrength,
-    topLeft.y - (y + 1) * tileSize + r3.y * randStrength,
-    topLeft.x + x * tileSize + r4.x * randStrength,
-    topLeft.y - (y + 1) * tileSize + r4.y * randStrength,
-  );
+
+  const x1 = topLeft.x + x * tileSize + r1.x * randStrength;
+  const y1 = topLeft.y - y * tileSize + r1.y * randStrength;
+  const x2 = topLeft.x + (x + 1) * tileSize + r2.x * randStrength;
+  const y2 = topLeft.y - y * tileSize + r2.y * randStrength;
+  const x3 = topLeft.x + (x + 1) * tileSize + r3.x * randStrength;
+  const y3 = topLeft.y - (y + 1) * tileSize + r3.y * randStrength;
+  const x4 = topLeft.x + x * tileSize + r4.x * randStrength;
+  const y4 = topLeft.y - (y + 1) * tileSize + r4.y * randStrength;
+
+  // ctx.lineCap = "round";
+  // top
+  {
+    const nx = x;
+    const ny = y - 1;
+    const above = state.level[ny * levelDimension + nx];
+    if (
+      above === "empty" ||
+      nx < 0 ||
+      nx >= levelDimension ||
+      ny < 0 ||
+      ny >= levelDimension
+    ) {
+      ctx.beginPath();
+      ctx.moveTo(x1, -y1);
+      ctx.lineTo(x2, -y2);
+      ctx.stroke();
+    }
+  }
+
+  // right
+  {
+    const nx = x + 1;
+    const ny = y;
+    const right = state.level[ny * levelDimension + nx];
+    if (
+      right === "empty" ||
+      nx < 0 ||
+      nx >= levelDimension ||
+      ny < 0 ||
+      ny >= levelDimension
+    ) {
+      ctx.beginPath();
+      ctx.moveTo(x2, -y2);
+      ctx.lineTo(x3, -y3);
+      ctx.stroke();
+    }
+  }
+
+  // bottom
+  {
+    const nx = x;
+    const ny = y + 1;
+    const below = state.level[ny * levelDimension + nx];
+    if (
+      below === "empty" ||
+      nx < 0 ||
+      nx >= levelDimension ||
+      ny < 0 ||
+      ny >= levelDimension
+    ) {
+      ctx.beginPath();
+      ctx.moveTo(x3, -y3);
+      ctx.lineTo(x4, -y4);
+      ctx.stroke();
+    }
+  }
+
+  // left
+  {
+    const nx = x - 1;
+    const ny = y;
+    const left = state.level[ny * levelDimension + nx];
+    if (
+      left === "empty" ||
+      nx < 0 ||
+      nx >= levelDimension ||
+      ny < 0 ||
+      ny >= levelDimension
+    ) {
+      ctx.beginPath();
+      ctx.moveTo(x4, -y4);
+      ctx.lineTo(x1, -y1);
+      ctx.stroke();
+    }
+  }
   ctx.restore();
 }
 
