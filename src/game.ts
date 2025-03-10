@@ -138,152 +138,49 @@ function randomizeCoinPosition() {
 randomizeCoinPosition();
 
 export function update(dt: number) {
+  state.physicTimeToProcess += dt;
+  const physicHz = 500;
+  const physicTickMs = 1000 / physicHz;
+  while (state.physicTimeToProcess > physicTickMs) {
+    state.physicTimeToProcess -= physicTickMs;
+    const dt = physicTickMs;
+    physicTick(dt);
+    clearInputs();
+  }
+}
+
+function physicTick(dt: number) {
   if (justPressed.has("r")) {
     Object.assign(state, structuredClone(initGameState));
     randomizeCoinPosition();
     clearInputs();
   }
 
-  if (state.current.type === "loading") {
-    if (state.current.time === 0) {
-      playSound("levelLoad");
-    }
-    state.current.time += dt;
-
-    if (state.current.time > state.current.loadAnimationLength) {
-      state.current = playing;
-    }
-
-    return;
-  }
-
   if (!state.player.alive) {
     return; // freeze when dead
   }
-  state.physicTimeToProcess += dt;
-  const physicHz = 500;
-  const physicTick = 1000 / physicHz;
 
-  // PROCESS INPUTS
-  //////////////////
-  {
-    if (justReleased.has(" ")) {
-      if (state.player.dy > 0) {
-        state.player.dy /= 2;
+  switch (state.current.type) {
+    case "loading": {
+      if (state.current.time === 0) {
+        playSound("levelLoad");
       }
+      state.current.time += dt;
+
+      if (state.current.time > state.current.loadAnimationLength) {
+        state.current = playing;
+      }
+      break;
     }
-  }
-
-  // PHYSICS
-  //////////////////
-  while (state.physicTimeToProcess > physicTick) {
-    state.physicTimeToProcess -= physicTick;
-    const dt = physicTick;
-    state.randomEffect.timeSinceLastChange += dt;
-    const timePerChange = 1000 / state.randomEffect.changesPerSecond;
-
-    if (state.randomEffect.timeSinceLastChange > timePerChange) {
-      state.randomEffect.timeSinceLastChange -= timePerChange;
-      state.randomEffect.corners.forEach((corner) => {
-        corner.x = Math.random() - 0.5;
-        corner.y = Math.random() - 0.5;
-      });
-    }
-
-    moveAndSlidePlayer(dt);
-
-    const coinInWorldPos = {
-      x: state.coin.x * tileSize - state.camera.width / 2,
-      y: -state.coin.y * tileSize + state.camera.height / 2,
-    };
-    // consider the coin to be the whole tile the coin is in
-    const touchingCoinX =
-      state.player.x < coinInWorldPos.x + tileSize &&
-      state.player.x + state.player.width > coinInWorldPos.x;
-    const touchingCoinY =
-      state.player.y > coinInWorldPos.y - tileSize &&
-      state.player.y - state.player.height < coinInWorldPos.y;
-    const playerTouchingCoin = touchingCoinX && touchingCoinY;
-
-    if (playerTouchingCoin) {
-      state.score += 1;
-      randomizeCoinPosition();
-      playSound("coin");
-    } else {
-    }
-
-    clearInputs();
-
-    // HANDLE TRIANGLE ENEMY STUFF
-    //////////////////
-
-    // spawn triangles
-    state.triangle.spawnTimer += dt;
-    if (state.triangle.spawnTimer > state.triangle.spawnRateMs) {
-      state.triangle.spawnTimer -= state.triangle.spawnRateMs;
-      state.triangle.num = (state.triangle.num + 1) % MAX_TRIANGLE_ENEMIES;
-
-      const newEnemy = state.triangle.enemies[state.triangle.num]!;
-      newEnemy.active = true;
-      newEnemy.x = Math.random() * state.camera.width - state.camera.width / 2;
-      newEnemy.y =
-        Math.random() * state.camera.height - state.camera.height / 2;
-      newEnemy.countdown = 2000;
-      newEnemy.shooting = false;
-
-      // trail
-      newEnemy.trail.points.forEach((point) => {
-        point.x = newEnemy.x;
-        point.y = newEnemy.y;
-      });
-    }
-
-    // update all alive triangles
-    state.triangle.enemies.forEach((enemy) => {
-      if (enemy.active) {
-        enemy.countdown -= dt;
-        if (enemy.shooting === false && enemy.countdown <= 0) {
-          // LOCK ONTO PLAYER SHOOT AT THEM
-          enemy.shooting = true;
-          enemy.angle = Math.atan2(
-            state.player.y - state.player.height / 2 - enemy.y,
-            state.player.x + state.player.width / 2 - enemy.x,
-          );
-          playSound("shoot");
-        }
-
-        if (enemy.shooting) {
-          // move towards angle
-          const speed = 0.05 * state.triangle.speed;
-          enemy.x += Math.cos(enemy.angle) * speed * dt;
-          enemy.y += Math.sin(enemy.angle) * speed * dt;
-
-          // trail
-          enemy.trail.num = (enemy.trail.num + 1) % enemy.trail.points.length;
-          enemy.trail.points[enemy.trail.num] = {
-            x: enemy.x,
-            y: enemy.y,
-          };
-        }
-
-        const distToPlayer = Math.hypot(
-          state.player.x + state.player.width / 2 - enemy.x,
-          state.player.y - state.player.width / 2 - enemy.y,
-        );
-
-        if (enemy.shooting) {
-          const touchingPlayer =
-            distToPlayer <
-            state.player.hitboxRadius +
-              // be lenient to player
-              enemy.radius / 2;
-          if (touchingPlayer) {
-            state.player.alive = false;
-            playSound("death");
-          }
+    case "playing": {
+      if (justReleased.has(" ")) {
+        if (state.player.dy > 0) {
+          state.player.dy /= 2;
         }
       }
-    });
+      playingPhysicTick(dt);
+      break;
+    }
   }
 }
 
@@ -494,6 +391,113 @@ export function draw(ctx: CanvasRenderingContext2D) {
   ctx.font = "5px Arial";
 
   ctx.fillText(`${state.score}`, 0, -40);
+}
+
+function playingPhysicTick(dt: number) {
+  state.randomEffect.timeSinceLastChange += dt;
+  const timePerChange = 1000 / state.randomEffect.changesPerSecond;
+
+  if (state.randomEffect.timeSinceLastChange > timePerChange) {
+    state.randomEffect.timeSinceLastChange -= timePerChange;
+    state.randomEffect.corners.forEach((corner) => {
+      corner.x = Math.random() - 0.5;
+      corner.y = Math.random() - 0.5;
+    });
+  }
+
+  moveAndSlidePlayer(dt);
+
+  const coinInWorldPos = {
+    x: state.coin.x * tileSize - state.camera.width / 2,
+    y: -state.coin.y * tileSize + state.camera.height / 2,
+  };
+  // consider the coin to be the whole tile the coin is in
+  const touchingCoinX =
+    state.player.x < coinInWorldPos.x + tileSize &&
+    state.player.x + state.player.width > coinInWorldPos.x;
+  const touchingCoinY =
+    state.player.y > coinInWorldPos.y - tileSize &&
+    state.player.y - state.player.height < coinInWorldPos.y;
+  const playerTouchingCoin = touchingCoinX && touchingCoinY;
+
+  if (playerTouchingCoin) {
+    state.score += 1;
+    randomizeCoinPosition();
+    playSound("coin");
+  } else {
+  }
+
+  clearInputs();
+
+  // HANDLE TRIANGLE ENEMY STUFF
+  //////////////////
+
+  // spawn triangles
+  state.triangle.spawnTimer += dt;
+  if (state.triangle.spawnTimer > state.triangle.spawnRateMs) {
+    state.triangle.spawnTimer -= state.triangle.spawnRateMs;
+    state.triangle.num = (state.triangle.num + 1) % MAX_TRIANGLE_ENEMIES;
+
+    const newEnemy = state.triangle.enemies[state.triangle.num]!;
+    newEnemy.active = true;
+    newEnemy.x = Math.random() * state.camera.width - state.camera.width / 2;
+    newEnemy.y = Math.random() * state.camera.height - state.camera.height / 2;
+    newEnemy.countdown = 2000;
+    newEnemy.shooting = false;
+
+    // trail
+    newEnemy.trail.points.forEach((point) => {
+      point.x = newEnemy.x;
+      point.y = newEnemy.y;
+    });
+  }
+
+  // update all alive triangles
+  state.triangle.enemies.forEach((enemy) => {
+    if (enemy.active) {
+      enemy.countdown -= dt;
+      if (enemy.shooting === false && enemy.countdown <= 0) {
+        // LOCK ONTO PLAYER SHOOT AT THEM
+        enemy.shooting = true;
+        enemy.angle = Math.atan2(
+          state.player.y - state.player.height / 2 - enemy.y,
+          state.player.x + state.player.width / 2 - enemy.x,
+        );
+        playSound("shoot");
+      }
+
+      if (enemy.shooting) {
+        // move towards angle
+        const speed = 0.05 * state.triangle.speed;
+        enemy.x += Math.cos(enemy.angle) * speed * dt;
+        enemy.y += Math.sin(enemy.angle) * speed * dt;
+
+        // trail
+        enemy.trail.num = (enemy.trail.num + 1) % enemy.trail.points.length;
+        enemy.trail.points[enemy.trail.num] = {
+          x: enemy.x,
+          y: enemy.y,
+        };
+      }
+
+      const distToPlayer = Math.hypot(
+        state.player.x + state.player.width / 2 - enemy.x,
+        state.player.y - state.player.width / 2 - enemy.y,
+      );
+
+      if (enemy.shooting) {
+        const touchingPlayer =
+          distToPlayer <
+          state.player.hitboxRadius +
+            // be lenient to player
+            enemy.radius / 2;
+        if (touchingPlayer) {
+          state.player.alive = false;
+          playSound("death");
+        }
+      }
+    }
+  });
 }
 
 function moveAndSlidePlayer(dt: number) {
