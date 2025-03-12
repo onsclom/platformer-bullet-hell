@@ -212,7 +212,7 @@ function physicTick(dt: number) {
       break;
     }
     case "playing": {
-      if (justReleased.has(" ")) {
+      if (justReleased.has(" ") || justReleased.has("w")) {
         if (state.player.dy > 0) {
           state.player.dy /= 2;
         }
