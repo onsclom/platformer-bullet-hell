@@ -1,4 +1,3 @@
-import level from "./level.txt?raw";
 import { keysDown, justReleased, justPressed, clearInputs } from "./input";
 import { playSound } from "./audio";
 
@@ -101,24 +100,7 @@ const initGameState = {
     particleNum: 0,
   },
 
-  level: Array.from({ length: levelDimension ** 2 }, (_, i) => {
-    const x = i % levelDimension;
-    const y = Math.floor(i / levelDimension);
-    if (
-      x === 0 ||
-      y === 0 ||
-      x === levelDimension - 1 ||
-      y === levelDimension - 1
-    ) {
-      return "solid";
-    }
-    return Math.random() > 0.1 ? "empty" : "solid";
-  }),
-  // level
-  //   .split("\n")
-  //   .flatMap((row) =>
-  //     row.split("").map((cell) => (cell === " " ? "empty" : "solid")),
-  //   ),
+  level: randomLevel(),
 
   // tile fun visual random effect
   randomEffect: {
@@ -133,19 +115,30 @@ const initGameState = {
   },
 };
 
+function randomLevel() {
+  return Array.from({ length: levelDimension ** 2 }, (_, i) => {
+    const x = i % levelDimension;
+    const y = Math.floor(i / levelDimension);
+    if (
+      x === 0 ||
+      y === 0 ||
+      x === levelDimension - 1 ||
+      y === levelDimension - 1
+    ) {
+      return "solid";
+    }
+    return Math.random() > 0.1 ? "empty" : "solid";
+  });
+}
+
 const state = structuredClone(initGameState);
 
 function randomizeCoinPosition() {
   while (true) {
-    const x = Math.floor(Math.random() * levelDimension);
-    const y = Math.floor(Math.random() * levelDimension);
-
-    const tileAtXY = state.level[y * levelDimension + x];
-    if (tileAtXY === "empty") {
-      state.coin.x = x;
-      state.coin.y = y;
-      break;
-    }
+    state.coin.x = Math.floor(Math.random() * levelDimension);
+    state.coin.y = Math.floor(Math.random() * levelDimension);
+    const tileAtXY = state.level[state.coin.y * levelDimension + state.coin.x];
+    if (tileAtXY === "empty") break;
   }
 }
 randomizeCoinPosition();
@@ -165,12 +158,13 @@ export function update(dt: number) {
 function physicTick(dt: number) {
   if (justPressed.has("r")) {
     Object.assign(state, structuredClone(initGameState));
-    randomizeCoinPosition();
     clearInputs();
+    state.level = randomLevel();
+    randomizeCoinPosition();
   }
 
   {
-    // random effect juice
+    // random wobble effect on tiles
     state.randomEffect.timeSinceLastChange += dt;
     const timePerChange = 1000 / state.randomEffect.changesPerSecond;
     if (state.randomEffect.timeSinceLastChange > timePerChange) {
@@ -182,16 +176,18 @@ function physicTick(dt: number) {
     }
   }
 
-  // update particles
-  state.coin.particles.forEach((particle) => {
-    if (particle.lifetime > 0) {
-      particle.lifetime -= dt;
-      const dx = Math.cos(particle.angle) * particle.speed * dt;
-      const dy = Math.sin(particle.angle) * particle.speed * dt;
-      particle.x += dx;
-      particle.y += dy;
-    }
-  });
+  {
+    // update particles
+    state.coin.particles.forEach((particle) => {
+      if (particle.lifetime > 0) {
+        particle.lifetime -= dt;
+        const dx = Math.cos(particle.angle) * particle.speed * dt;
+        const dy = Math.sin(particle.angle) * particle.speed * dt;
+        particle.x += dx;
+        particle.y += dy;
+      }
+    });
+  }
 
   {
     // screen shake
@@ -578,11 +574,6 @@ function playingPhysicTick(dt: number) {
 }
 
 function moveAndSlidePlayer(dt: number) {
-  /*
-    TODO:
-    https://x.com/MaddyThorson/status/1238338574220546049
-    - ground corner correction
-  */
   state.player.timeSinceGrounded += dt;
   state.player.timeSinceJumpBuffered += dt;
 

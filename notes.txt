@@ -1,13 +1,26 @@
-- level should randomly generate!!
-  - cool animations between changing stages
-  - think pokemon stadium
-
-- on death, zoom into player??
-
-- what if there's stages? rougelite style, pick power ups :
-  - speed buff
-  - double jump
-  - wall jump
-
 https://dev-dwarf.itch.io/self
 ^ JUICE
+
+https://x.com/Blukulele/status/1899143216194273735
+
+STAR OF PROVIDENCE (BULLET HELL, ENEMIES)
++ BALATRO ($ AND SHOP AND JUICE)
++ PLATFORMER
+^
+TODO TO GET THERE:
+- lives
+- waves
+  - progress bar
+  - level regeneration
+- coins are money, not points
+
+other todo:
+- make player feel more alive
+
+TODO:
+- figure out camera and fix drawing
+- tweak world size & player size
+- tweak player movement
+
+current goal:
+cleanup things until i can easily start the above and add camera effects

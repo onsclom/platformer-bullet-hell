@@ -34,7 +34,7 @@ const audio = {
 
 const audioCtx = new AudioContext();
 
-const audioBuffers = await Promise.all(
+let audioBuffers = await Promise.all(
   Object.values(audio).map(async (sound) => {
     const response = await fetch(sound.source);
     const arrayBuffer = await response.arrayBuffer();
