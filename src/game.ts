@@ -704,6 +704,7 @@ function moveAndSlidePlayer(dt: number) {
   // allow jumping when grounded
   if (
     justPressed.has(" ") ||
+    justPressed.has("w") ||
     state.player.timeSinceJumpBuffered < state.player.jumpBufferTime
   ) {
     if (state.player.timeSinceGrounded < state.player.coyoteTime) {
