@@ -1,20 +1,23 @@
-import { keysDown, justReleased, justPressed, clearInputs } from "./input";
-import { playSound } from "./audio";
+import { justPressed, clearInputs } from "../input";
+import { playSound } from "../audio";
+import Player from "./player";
 
-const levelDimension = 20;
-const initCamera = {
+export const levelDimension = 20;
+export const initCamera = {
   width: 100,
   height: 100,
   x: 0,
   y: 0,
-
   shakeFactor: 1, // 0 to 1
 };
-const topLeftTileOnMap = { x: -initCamera.width / 2, y: initCamera.height / 2 };
+export const topLeftTileOnMap = {
+  x: -initCamera.width / 2,
+  y: initCamera.height / 2,
+};
 const tileSize = initCamera.width / levelDimension;
 
 const MAX_TRIANGLE_ENEMIES = 100;
-const initJumpBufferTime = 150;
+export const initJumpBufferTime = 150;
 
 const levelLoadAnimation = {
   type: "loading" as const,
@@ -27,6 +30,8 @@ const playing = {
 };
 
 const initGameState = {
+  ctx: null as CanvasRenderingContext2D | null,
+
   current: levelLoadAnimation as typeof levelLoadAnimation | typeof playing,
 
   camera: initCamera,
@@ -35,29 +40,7 @@ const initGameState = {
 
   physicTimeToProcess: 0,
 
-  player: {
-    x: 0,
-    y: 0,
-    width: initCamera.width / levelDimension,
-    height: initCamera.height / levelDimension,
-
-    jumpStrength: 120,
-
-    dy: 0,
-    speed: 50,
-
-    hitboxRadius: 0.5,
-
-    alive: true,
-
-    coyoteTime: 50,
-    timeSinceGrounded: 0,
-
-    jumpBufferTime: initJumpBufferTime,
-    timeSinceJumpBuffered: initJumpBufferTime,
-
-    cornerCorrection: 1.5,
-  },
+  player: Player.create(),
 
   triangle: {
     enemies: Array.from({
@@ -131,7 +114,7 @@ function randomLevel() {
   });
 }
 
-const state = structuredClone(initGameState);
+export const state = structuredClone(initGameState);
 
 function randomizeCoinPosition() {
   while (true) {
@@ -212,11 +195,6 @@ function physicTick(dt: number) {
       break;
     }
     case "playing": {
-      if (justReleased.has(" ") || justReleased.has("w")) {
-        if (state.player.dy > 0) {
-          state.player.dy /= 2;
-        }
-      }
       playingPhysicTick(dt);
       break;
     }
@@ -265,8 +243,8 @@ export function draw(ctx: CanvasRenderingContext2D) {
   if (state.current.type === "loading") {
     const tileLoadInTime = 100;
 
-    state.level.forEach((cell, i) => {
-      assert(state.current.type === "loading");
+    for (let i = 0; i < state.level.length; i++) {
+      const cell = state.level[i];
       const x = i % levelDimension;
       const y = Math.floor(i / levelDimension);
       const loadStart =
@@ -281,7 +259,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
       if (cell === "solid") {
         drawTile(ctx, x, y, progress);
       }
-    });
+    }
     ctx.fillStyle = "#99f";
 
     return;
@@ -296,26 +274,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
   });
   ctx.fillStyle = "#99f";
 
-  // PLAYER
-  //////////////////
-  fillRect(
-    ctx,
-    state.player.x,
-    state.player.y,
-    state.player.x + state.player.width,
-    state.player.y - state.player.height,
-  );
-  // draw player hitbox
-  ctx.beginPath();
-  ctx.fillStyle = "#808"; //rgb
-  ctx.arc(
-    state.player.x + state.player.width / 2,
-    -state.player.y + state.player.height / 2,
-    state.player.hitboxRadius,
-    0,
-    2 * Math.PI,
-  );
-  ctx.fill();
+  Player.draw(ctx);
 
   // COIN
   //////////////////
@@ -410,7 +369,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
         ctx.globalAlpha = 1;
         ctx.fillStyle = "white";
         const timeRemainingToSpawn = Math.max(enemy.countdown, 0);
-        const scale = 1 - timeRemainingToSpawn / 2000;
+        const scale = (1 - timeRemainingToSpawn / 2000) ** 2;
         ctx.scale(scale, scale);
       }
       ctx.rotate(rotationAngle);
@@ -459,7 +418,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
 }
 
 function playingPhysicTick(dt: number) {
-  moveAndSlidePlayer(dt);
+  Player.update(dt);
 
   const coinInWorldPos = {
     x: state.coin.x * tileSize - state.camera.width / 2,
@@ -573,154 +532,7 @@ function playingPhysicTick(dt: number) {
   });
 }
 
-function moveAndSlidePlayer(dt: number) {
-  state.player.timeSinceGrounded += dt;
-  state.player.timeSinceJumpBuffered += dt;
-
-  // handle X-axis
-  let dx = 0;
-  if (keysDown.has("a")) dx -= 1;
-  if (keysDown.has("d")) dx += 1;
-  {
-    state.player.x += dx * (dt / 1000) * state.player.speed;
-    for (let i = 0; i < levelDimension ** 2; i++) {
-      const tx = i % levelDimension;
-      const ty = Math.floor(i / levelDimension);
-      const tile = state.level[ty * levelDimension + tx];
-      if (tile === "solid") {
-        // collision
-        const tileTopLeft = {
-          x: topLeftTileOnMap.x + tx * state.player.width,
-          y: topLeftTileOnMap.y - ty * state.player.height,
-        };
-        const tileBottomRight = {
-          x: tileTopLeft.x + state.player.width,
-          y: tileTopLeft.y - state.player.height,
-        };
-        const playerBottomRight = {
-          x: state.player.x + state.player.width,
-          y: state.player.y - state.player.height,
-        };
-        const playerTopLeft = {
-          x: state.player.x,
-          y: state.player.y,
-        };
-        if (
-          playerBottomRight.x > tileTopLeft.x &&
-          playerBottomRight.y < tileTopLeft.y &&
-          playerTopLeft.x < tileBottomRight.x &&
-          playerTopLeft.y > tileBottomRight.y
-        ) {
-          // resolve against x
-          if (dx > 0) {
-            state.player.x = tileTopLeft.x - state.player.width;
-          } else {
-            state.player.x = tileBottomRight.x;
-          }
-        }
-      }
-    }
-  }
-
-  state.player.dy -= state.gravity * (dt / 1000);
-  state.player.y += state.player.dy * (dt / 1000);
-  {
-    for (let i = 0; i < levelDimension ** 2; i++) {
-      const tx = i % levelDimension;
-      const ty = Math.floor(i / levelDimension);
-      const tile = state.level[ty * levelDimension + tx];
-      if (tile === "solid") {
-        // collision
-        const tileTopLeft = {
-          x: topLeftTileOnMap.x + tx * state.player.width,
-          y: topLeftTileOnMap.y - ty * state.player.height,
-        };
-        const tileBottomRight = {
-          x: tileTopLeft.x + state.player.width,
-          y: tileTopLeft.y - state.player.height,
-        };
-        const playerBottomRight = {
-          x: state.player.x + state.player.width,
-          y: state.player.y - state.player.height,
-        };
-        const playerTopLeft = {
-          x: state.player.x,
-          y: state.player.y,
-        };
-        if (
-          playerBottomRight.x > tileTopLeft.x &&
-          playerBottomRight.y < tileTopLeft.y &&
-          playerTopLeft.x < tileBottomRight.x &&
-          playerTopLeft.y > tileBottomRight.y
-        ) {
-          const xOverlapAmount = Math.min(
-            playerBottomRight.x - tileTopLeft.x,
-            tileBottomRight.x - playerTopLeft.x,
-          );
-          // if x overlap is small, lets just resolve that
-
-          let corrected = false;
-          if (state.player.dy > 0) {
-            if (xOverlapAmount < state.player.cornerCorrection) {
-              if (playerTopLeft.x < tileTopLeft.x) {
-                const tileToLeft = state.level[ty * levelDimension + tx - 1];
-                if (tileToLeft !== "solid") {
-                  state.player.x = tileTopLeft.x - state.player.width;
-                  corrected = true;
-                }
-              } else {
-                const tileToRight = state.level[ty * levelDimension + tx + 1];
-                if (tileToRight !== "solid") {
-                  state.player.x = tileBottomRight.x;
-                  corrected = true;
-                }
-              }
-            }
-          }
-
-          //
-
-          if (!corrected) {
-            // resolve against y
-            if (state.player.dy <= 0) {
-              const landSoundThreshold = -5;
-              if (state.player.dy < landSoundThreshold) {
-                playSound("land");
-              }
-
-              state.player.y = tileTopLeft.y + state.player.height;
-              state.player.dy = 0;
-              state.player.timeSinceGrounded = 0;
-            } else {
-              state.player.y = tileBottomRight.y;
-              state.player.dy = 0;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // allow jumping when grounded
-  if (
-    justPressed.has(" ") ||
-    justPressed.has("w") ||
-    state.player.timeSinceJumpBuffered < state.player.jumpBufferTime
-  ) {
-    if (state.player.timeSinceGrounded < state.player.coyoteTime) {
-      state.player.dy = state.player.jumpStrength;
-      state.player.timeSinceJumpBuffered = initJumpBufferTime;
-      playSound("jump");
-      console.log("ASDf");
-    } else {
-      if (justPressed.has(" ")) {
-        state.player.timeSinceJumpBuffered = 0;
-      }
-    }
-  }
-}
-
-function fillRect(
+export function fillRect(
   ctx: CanvasRenderingContext2D,
   x1: number,
   y1: number,

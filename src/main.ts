@@ -1,12 +1,13 @@
-import { update, draw } from "./game";
+import { update, draw, state } from "./game";
 
-const canvas = document.createElement("canvas");
+export const canvas = document.createElement("canvas");
 canvas.style.width = "100%";
 canvas.style.height = "100%";
 canvas.style.position = "fixed";
 canvas.style.top = "0";
 canvas.style.left = "0";
 document.body.appendChild(canvas);
+state.ctx = canvas.getContext("2d")!;
 
 const LOG_FRAME_TIMES = false;
 
