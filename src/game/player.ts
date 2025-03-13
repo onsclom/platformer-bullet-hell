@@ -11,8 +11,10 @@ import {
 
 function create() {
   return {
+    // center
     x: 0,
     y: 0,
+
     width: 5,
     height: 5,
 
@@ -43,7 +45,10 @@ function draw(ctx: CanvasRenderingContext2D) {
   // PLAYER
   //////////////////
   {
-    const { x, y } = gamePosToCanvasPos(state.player.x, state.player.y);
+    const { x, y } = gamePosToCanvasPos(
+      state.player.x - state.player.width / 2,
+      state.player.y + state.player.height / 2,
+    );
     ctx.fillRect(x, y, state.player.width, state.player.height);
   }
 
@@ -52,10 +57,7 @@ function draw(ctx: CanvasRenderingContext2D) {
   ctx.beginPath();
   ctx.fillStyle = "#808";
   {
-    const { x, y } = gamePosToCanvasPos(
-      state.player.x + state.player.width / 2,
-      state.player.y - state.player.height / 2,
-    );
+    const { x, y } = gamePosToCanvasPos(state.player.x, state.player.y);
     ctx.arc(x, y, state.player.hitboxRadius, 0, 2 * Math.PI);
   }
   ctx.fill();
@@ -94,12 +96,12 @@ function moveAndSlidePlayer(dt: number) {
           y: tileTopLeft.y - state.player.height,
         };
         const playerBottomRight = {
-          x: state.player.x + state.player.width,
-          y: state.player.y - state.player.height,
+          x: state.player.x + state.player.width * 0.5,
+          y: state.player.y - state.player.height * 0.5,
         };
         const playerTopLeft = {
-          x: state.player.x,
-          y: state.player.y,
+          x: state.player.x - state.player.width * 0.5,
+          y: state.player.y + state.player.height * 0.5,
         };
         if (
           playerBottomRight.x > tileTopLeft.x &&
@@ -109,9 +111,9 @@ function moveAndSlidePlayer(dt: number) {
         ) {
           // resolve against x
           if (dx > 0) {
-            state.player.x = tileTopLeft.x - state.player.width;
+            state.player.x = tileTopLeft.x - state.player.width * 0.5;
           } else {
-            state.player.x = tileBottomRight.x;
+            state.player.x = tileBottomRight.x + state.player.width * 0.5;
           }
         }
       }
@@ -136,12 +138,12 @@ function moveAndSlidePlayer(dt: number) {
           y: tileTopLeft.y - state.player.height,
         };
         const playerBottomRight = {
-          x: state.player.x + state.player.width,
-          y: state.player.y - state.player.height,
+          x: state.player.x + state.player.width * 0.5,
+          y: state.player.y - state.player.height * 0.5,
         };
         const playerTopLeft = {
-          x: state.player.x,
-          y: state.player.y,
+          x: state.player.x - state.player.width * 0.5,
+          y: state.player.y + state.player.height * 0.5,
         };
         if (
           playerBottomRight.x > tileTopLeft.x &&
@@ -161,13 +163,13 @@ function moveAndSlidePlayer(dt: number) {
               if (playerTopLeft.x < tileTopLeft.x) {
                 const tileToLeft = state.level[ty * levelDimension + tx - 1];
                 if (tileToLeft !== "solid") {
-                  state.player.x = tileTopLeft.x - state.player.width;
+                  state.player.x = tileTopLeft.x - state.player.width * 0.5;
                   corrected = true;
                 }
               } else {
                 const tileToRight = state.level[ty * levelDimension + tx + 1];
                 if (tileToRight !== "solid") {
-                  state.player.x = tileBottomRight.x;
+                  state.player.x = tileBottomRight.x + state.player.width * 0.5;
                   corrected = true;
                 }
               }
@@ -184,11 +186,11 @@ function moveAndSlidePlayer(dt: number) {
                 playSound("land");
               }
 
-              state.player.y = tileTopLeft.y + state.player.height;
+              state.player.y = tileTopLeft.y + state.player.height * 0.5;
               state.player.dy = 0;
               state.player.timeSinceGrounded = 0;
             } else {
-              state.player.y = tileBottomRight.y;
+              state.player.y = tileBottomRight.y - state.player.height * 0.5;
               state.player.dy = 0;
             }
           }

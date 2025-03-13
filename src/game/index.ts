@@ -481,11 +481,10 @@ function playingPhysicTick(dt: number) {
     if (enemy.active) {
       enemy.countdown -= dt;
       if (enemy.shooting === false && enemy.countdown <= 0) {
-        // LOCK ONTO PLAYER SHOOT AT THEM
         enemy.shooting = true;
         enemy.angle = Math.atan2(
-          state.player.y - state.player.height / 2 - enemy.y,
-          state.player.x + state.player.width / 2 - enemy.x,
+          state.player.y - enemy.y,
+          state.player.x - enemy.x,
         );
         playSound("shoot");
       }
@@ -503,23 +502,24 @@ function playingPhysicTick(dt: number) {
           y: enemy.y,
         };
       }
+    }
+  });
 
+  // check if triangle touching player
+  state.triangle.enemies.forEach((enemy) => {
+    if (enemy.shooting) {
       const distToPlayer = Math.hypot(
-        state.player.x + state.player.width / 2 - enemy.x,
-        state.player.y - state.player.width / 2 - enemy.y,
+        state.player.x - enemy.x,
+        state.player.y - enemy.y,
       );
-
-      if (enemy.shooting) {
-        const touchingPlayer =
-          distToPlayer <
-          state.player.hitboxRadius +
-            // be lenient to player
-            enemy.radius / 2;
-        if (touchingPlayer) {
-          state.player.alive = false;
-          playSound("death");
-          state.camera.shakeFactor = 1;
-        }
+      const playerTouchingEnemy =
+        distToPlayer <
+        state.player.hitboxRadius +
+          // be lenient to player
+          enemy.radius * 0.5;
+      if (playerTouchingEnemy) {
+        state.player.alive = false;
+        playSound("death");
       }
     }
   });
