@@ -1,11 +1,9 @@
+inspiration:
 https://dev-dwarf.itch.io/self
-^ JUICE
-
 https://x.com/Blukulele/status/1899143216194273735
 
-STAR OF PROVIDENCE (BULLET HELL, ENEMIES)
-+ BALATRO ($ AND SHOP AND JUICE)
-+ PLATFORMER
+star of providence, balatro, platformer
+
 ^
 TODO TO GET THERE:
 - lives

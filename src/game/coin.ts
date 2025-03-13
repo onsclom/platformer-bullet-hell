@@ -54,7 +54,7 @@ export function update(dt: number) {
           particle.lifetime = particle.lifespan;
           particle.angle = Math.random() * Math.PI * 2;
           particle.speed = Math.random() * 0.05;
-          particle.color = `hsl(${Math.random() * 360}, 100%, 80%)`;
+          particle.color = `hsl(${Math.random() * 360}, 100%, 65%)`;
           state.coins.particleNum = (state.coins.particleNum + 1) % 1000;
         }
       }

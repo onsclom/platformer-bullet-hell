@@ -33,9 +33,10 @@ export function create() {
   };
 }
 
-const enemySpawnTime = 2000;
+const enemySpawnTime = 5000;
 
 export function update(dt: number) {
+  if (!state.player.alive) return;
   // HANDLE TRIANGLE ENEMY STUFF
   //////////////////
 
@@ -119,7 +120,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
       if (!enemy.shooting) {
         ctx.strokeStyle = "red";
         ctx.globalAlpha = (1 - enemy.countdown / enemySpawnTime) ** 4;
-        ctx.lineWidth = 0.2;
+        ctx.lineWidth = 0.1;
         ctx.beginPath();
         {
           const { x, y } = gamePosToCanvasPos(enemy.spawnX, enemy.spawnY);
@@ -214,6 +215,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
       ctx.restore();
     }
   });
+  ctx.globalAlpha = 1;
 }
 
 export default { create, update, draw };

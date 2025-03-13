@@ -2,7 +2,7 @@
 import { playSound } from "../audio";
 import { justPressed, justReleased, keysDown } from "../input";
 import { gamePosToCanvasPos } from "./camera";
-import { state, levelDimension, topLeftTileOnMap } from "./index";
+import { state, levelDimension, topLeftTileOnMap, animate } from "./index";
 
 const initJumpBufferTime = 150;
 
@@ -23,6 +23,7 @@ function create() {
     hitboxRadius: 0.5,
 
     alive: true,
+    timeDead: 0,
 
     coyoteTime: 50,
     timeSinceGrounded: 0,
@@ -35,6 +36,7 @@ function create() {
 }
 
 function update(dt: number) {
+  if (!state.player.alive) return;
   moveAndSlidePlayer(dt);
 }
 
@@ -72,8 +74,11 @@ function moveAndSlidePlayer(dt: number) {
 
   // handle X-axis
   let dx = 0;
+
   if (keysDown.has("a")) dx -= 1;
   if (keysDown.has("d")) dx += 1;
+
+  state.camera.angle = animate(state.camera.angle, dx * 0.02, dt * 0.02);
   {
     state.player.x += dx * (dt / 1000) * state.player.speed;
     for (let i = 0; i < levelDimension ** 2; i++) {

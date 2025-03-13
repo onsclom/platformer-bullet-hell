@@ -18,7 +18,7 @@ import { state } from "./index";
 // we already scale and letterbox, so this just needs to do the translation
 export function gamePosToCanvasPos(x: number, y: number) {
   return {
-    x: x - state.camera.x,
-    y: -y - state.camera.y,
+    x: x,
+    y: -y,
   };
 }

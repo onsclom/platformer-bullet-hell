@@ -12,6 +12,7 @@ export const initCamera = {
   x: 0,
   y: 0,
   shakeFactor: 1, // 0 to 1
+  angle: 0, // fun juice
 };
 
 export const tileSize = 5;
@@ -23,7 +24,7 @@ export const topLeftTileOnMap = {
 const levelLoadAnimation = {
   type: "loading" as const,
   time: 0,
-  loadAnimationLength: 1000,
+  loadAnimationLength: 1500,
 };
 
 const playing = {
@@ -101,10 +102,6 @@ function physicTick(dt: number) {
     state.camera.shakeFactor *= (0.9 * shakeLength) ** (dt / 1000);
   }
 
-  if (!state.player.alive) {
-    return; // freeze when dead
-  }
-
   switch (state.current.type) {
     case "loading": {
       if (state.current.time === 0) {
@@ -142,78 +139,125 @@ export function draw(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvasRect.width, canvasRect.height);
 
-  ctx.translate(letterBoxed.x + minSide / 2, letterBoxed.y + minSide / 2);
-  ctx.scale(minSide / state.camera.width, minSide / state.camera.height);
-  ctx.translate(-state.camera.x, -state.camera.y);
+  // ctx.fillStyle = "black";
+  // fillRect(
+  //   ctx,
+  //   0.5 * -state.camera.width,
+  //   0.5 * state.camera.height,
+  //   0.5 * state.camera.width,
+  //   0.5 * -state.camera.height,
+  // );
 
-  // CAMERA SHAKE
-  //////////////////
-  const strength = 0.5;
-  const xShake =
-    Math.cos(performance.now() * 0.05) * state.camera.shakeFactor * strength;
-  const yShake =
-    Math.sin(performance.now() * 0.0503) * state.camera.shakeFactor * strength;
-  ctx.translate(xShake, yShake);
+  ctx.translate(letterBoxed.x, letterBoxed.y);
+  {
+    // camera space
+    ctx.save();
+    ctx.translate(minSide / 2, minSide / 2);
+    ctx.scale(minSide / state.camera.width, minSide / state.camera.height);
+    ctx.translate(-state.camera.x, state.camera.y);
+    // CAMERA SHAKE
+    //////////////////
+    const strength = 0.5;
+    const xShake =
+      Math.cos(performance.now() * 0.05) * state.camera.shakeFactor * strength;
+    const yShake =
+      Math.sin(performance.now() * 0.0503) *
+      state.camera.shakeFactor *
+      strength;
+    ctx.translate(xShake, yShake);
 
-  ctx.save();
-  ctx.globalAlpha = 0.95;
-  ctx.fillStyle = "black";
-  fillRect(ctx, -50, 50, 50, -50);
+    // rotate from center
+    ctx.translate(state.camera.x, -state.camera.y);
+    ctx.rotate(state.camera.angle);
+    ctx.translate(-state.camera.x, state.camera.y);
 
-  ctx.restore();
+    ctx.save();
+    ctx.fillStyle = "gray";
+    fillRect(ctx, -50, 50, 50, -50);
+    ctx.restore();
 
-  if (state.current.type === "loading") {
-    const tileLoadInTime = 100;
+    if (state.current.type === "loading") {
+      const tileLoadInTime = 500;
 
-    for (let i = 0; i < state.level.length; i++) {
-      const cell = state.level[i];
+      for (let i = 0; i < state.level.length; i++) {
+        const cell = state.level[i];
+        const x = i % levelDimension;
+        const y = Math.floor(i / levelDimension);
+        const loadStart =
+          (state.current.loadAnimationLength - tileLoadInTime) *
+          (((x + y) / levelDimension) * 0.5);
+
+        const progress = Math.max(
+          0,
+          Math.min(1, (state.current.time - loadStart) / tileLoadInTime),
+        );
+
+        if (cell === "solid") {
+          // TODO: fix to draw stroke lines on top after all tiles
+          drawTile(ctx, x, y, progress);
+        }
+      }
+      ctx.fillStyle = "#99f";
+
+      return;
+    }
+
+    state.level.forEach((cell, i) => {
       const x = i % levelDimension;
       const y = Math.floor(i / levelDimension);
-      const loadStart =
-        (state.current.loadAnimationLength - tileLoadInTime) *
-        (i / levelDimension ** 2);
-
-      const progress = Math.max(
-        0,
-        Math.min(1, (state.current.time - loadStart) / tileLoadInTime),
-      );
-
       if (cell === "solid") {
-        // TODO: fix to draw stroke lines on top after all tiles
-        drawTile(ctx, x, y, progress);
+        drawTile(ctx, x, y);
       }
-    }
+    });
     ctx.fillStyle = "#99f";
 
-    return;
+    Player.draw(ctx);
+    Coin.draw(ctx);
+    Triangle.draw(ctx);
+    ctx.restore();
   }
 
-  state.level.forEach((cell, i) => {
-    const x = i % levelDimension;
-    const y = Math.floor(i / levelDimension);
-    if (cell === "solid") {
-      drawTile(ctx, x, y);
-    }
-  });
-  ctx.fillStyle = "#99f";
-
-  Player.draw(ctx);
-  Coin.draw(ctx);
-  Triangle.draw(ctx);
+  // UI SPACE
 
   // SCORE
   ctx.fillStyle = "white";
-  ctx.font = "5px Arial";
+  const fontSize = minSide * 0.05;
+  ctx.font = `${fontSize}px Arial`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-
-  ctx.fillText(`${state.score}`, 0, -40);
+  ctx.fillText(`${state.score}`, minSide * 0.5, fontSize);
 }
 
 function playingPhysicTick(dt: number) {
   Player.update(dt);
   Coin.update(dt);
+  // TODO: move player/coin collision here
   Triangle.update(dt);
+  // TODO: move player/tri collision here
+
+  // CAMERA
+  //////////////////
+  if (state.player.alive === false) {
+    state.player.timeDead += dt;
+    // animate camera to player and zoom in
+    state.camera.x = animate(state.camera.x, state.player.x, dt * 0.01);
+    state.camera.y = animate(state.camera.y, state.player.y, dt * 0.01);
+    state.camera.width = animate(state.camera.width, 50, dt * 0.01);
+    state.camera.height = animate(state.camera.height, 50, dt * 0.01);
+
+    const wobbleBuildUpTime = 1000;
+    const wobbleFactor =
+      (Math.min(wobbleBuildUpTime, state.player.timeDead) /
+        wobbleBuildUpTime) **
+      2;
+    state.camera.angle =
+      Math.sin(performance.now() * 0.005) * wobbleFactor * 0.1;
+  }
+
+  // camera following player
+  // state.camera.x = state.player.x;
+  // state.camera.y = state.player.y;
+
   clearInputs();
 }
 
@@ -254,7 +298,12 @@ function drawTile(
   loadProgress = 1,
 ) {
   ctx.save();
-  ctx.scale(loadProgress, loadProgress);
+  // ctx.scale(loadProgress, loadProgress);
+  ctx.globalAlpha = loadProgress;
+  ctx.translate(
+    0,
+    -Math.sin(loadProgress * Math.PI) * 5 + (1 - loadProgress) * 5,
+  );
 
   const r1 = state.randomEffect.corners[y * (levelDimension + 1) + x];
   const r2 = state.randomEffect.corners[y * (levelDimension + 1) + x + 1];
@@ -377,4 +426,8 @@ function assert<T>(value: T): asserts value {
   if (!value) {
     throw new Error("assertion failed");
   }
+}
+
+export function animate(from: number, to: number, ratio: number) {
+  return from * (1 - ratio) + ratio * to;
 }
