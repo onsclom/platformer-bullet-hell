@@ -4,7 +4,7 @@ export function create() {
   return {};
 }
 
-export function update() {}
+export function update(dt: number) {}
 
 export function draw(ctx: CanvasRenderingContext2D) {}
 

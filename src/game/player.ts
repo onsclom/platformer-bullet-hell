@@ -2,12 +2,9 @@
 import { playSound } from "../audio";
 import { justPressed, justReleased, keysDown } from "../input";
 import { gamePosToCanvasPos } from "./camera";
-import {
-  state,
-  levelDimension,
-  initJumpBufferTime,
-  topLeftTileOnMap,
-} from "./index";
+import { state, levelDimension, topLeftTileOnMap } from "./index";
+
+const initJumpBufferTime = 150;
 
 function create() {
   return {
@@ -54,13 +51,13 @@ function draw(ctx: CanvasRenderingContext2D) {
 
   // hitbox circle
   // TODO: make this a heart
-  ctx.beginPath();
-  ctx.fillStyle = "#808";
   {
+    ctx.beginPath();
+    ctx.fillStyle = "#808";
     const { x, y } = gamePosToCanvasPos(state.player.x, state.player.y);
     ctx.arc(x, y, state.player.hitboxRadius, 0, 2 * Math.PI);
+    ctx.fill();
   }
-  ctx.fill();
 }
 
 export default { create, update, draw };
@@ -175,8 +172,6 @@ function moveAndSlidePlayer(dt: number) {
               }
             }
           }
-
-          //
 
           if (!corrected) {
             // resolve against y

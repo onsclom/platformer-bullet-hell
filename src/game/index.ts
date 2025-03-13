@@ -1,6 +1,7 @@
 import { justPressed, clearInputs } from "../input";
 import { playSound } from "../audio";
 import Player from "./player";
+import Coin, { randomizeCoinPosition } from "./coin";
 
 export const levelDimension = 20;
 export const initCamera = {
@@ -14,10 +15,9 @@ export const topLeftTileOnMap = {
   x: -initCamera.width / 2,
   y: initCamera.height / 2,
 };
-const tileSize = initCamera.width / levelDimension;
+export const tileSize = initCamera.width / levelDimension;
 
 const MAX_TRIANGLE_ENEMIES = 100;
-export const initJumpBufferTime = 150;
 
 const levelLoadAnimation = {
   type: "loading" as const,
@@ -54,7 +54,7 @@ const initGameState = {
       angle: 0,
       radius: 2,
       trail: {
-        points: Array.from({ length: 50 }, () => ({
+        points: Array.from({ length: 75 }, () => ({
           x: 0,
           y: 0,
         })),
@@ -67,22 +67,7 @@ const initGameState = {
     spawnTimer: 0,
   },
 
-  coin: {
-    x: 0,
-    y: 0,
-
-    particles: Array.from({ length: 1000 }, () => ({
-      lifetime: 0,
-      lifespan: 400,
-      x: 0,
-      y: 0,
-      angle: 0,
-      speed: 0,
-      color: "",
-    })),
-    particleNum: 0,
-  },
-
+  coin: Coin.create(),
   level: randomLevel(),
 
   // tile fun visual random effect
@@ -115,15 +100,6 @@ function randomLevel() {
 }
 
 export const state = structuredClone(initGameState);
-
-function randomizeCoinPosition() {
-  while (true) {
-    state.coin.x = Math.floor(Math.random() * levelDimension);
-    state.coin.y = Math.floor(Math.random() * levelDimension);
-    const tileAtXY = state.level[state.coin.y * levelDimension + state.coin.x];
-    if (tileAtXY === "empty") break;
-  }
-}
 randomizeCoinPosition();
 
 export function update(dt: number) {
@@ -166,8 +142,8 @@ function physicTick(dt: number) {
         particle.lifetime -= dt;
         const dx = Math.cos(particle.angle) * particle.speed * dt;
         const dy = Math.sin(particle.angle) * particle.speed * dt;
-        particle.x += dx;
-        particle.y += dy;
+        particle.tileX += dx;
+        particle.tileY += dy;
       }
     });
   }
@@ -306,7 +282,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
       const size = particle.lifetime / particle.lifespan;
       ctx.beginPath();
 
-      ctx.translate(particle.x, -particle.y);
+      ctx.translate(particle.tileX, -particle.tileY);
       ctx.scale(size, size);
       ctx.arc(0, 0, 0.5, 0, 2 * Math.PI);
       ctx.fillStyle = particle.color;
@@ -322,6 +298,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
     if (enemy.active) {
       if (enemy.shooting) {
         ctx.fillStyle = "#800";
+        ctx.globalAlpha = 0.25;
         for (let i = 0; i < enemy.trail.points.length; i++) {
           const point =
             enemy.trail.points[
@@ -359,6 +336,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
           ctx.fill();
           ctx.restore();
         }
+        ctx.globalAlpha = 1;
       }
 
       // draw head
@@ -399,57 +377,20 @@ export function draw(ctx: CanvasRenderingContext2D) {
       ctx.fill();
       ctx.restore();
     }
-
-    // draw trail
   });
 
   // SCORE
   ctx.fillStyle = "white";
   ctx.font = "5px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
 
   ctx.fillText(`${state.score}`, 0, -40);
 }
 
 function playingPhysicTick(dt: number) {
   Player.update(dt);
-
-  const coinInWorldPos = {
-    x: state.coin.x * tileSize - state.camera.width / 2,
-    y: -state.coin.y * tileSize + state.camera.height / 2,
-  };
-  // consider the coin to be the whole tile the coin is in
-  const touchingCoinX =
-    state.player.x < coinInWorldPos.x + tileSize &&
-    state.player.x + state.player.width > coinInWorldPos.x;
-  const touchingCoinY =
-    state.player.y > coinInWorldPos.y - tileSize &&
-    state.player.y - state.player.height < coinInWorldPos.y;
-  const playerTouchingCoin = touchingCoinX && touchingCoinY;
-
-  if (playerTouchingCoin) {
-    state.score += 1;
-    state.camera.shakeFactor += 0.4;
-    playSound("coin");
-    {
-      // spawn coin particles
-      const particlesToSpawn = 50;
-      for (let i = 0; i < particlesToSpawn; i++) {
-        const particle = state.coin.particles[state.coin.particleNum]!;
-        particle.x =
-          state.coin.x * tileSize + tileSize / 2 - state.camera.width / 2;
-        particle.y =
-          -state.coin.y * tileSize - tileSize / 2 + state.camera.height / 2;
-        particle.lifetime = particle.lifespan;
-        particle.angle = Math.random() * Math.PI * 2;
-        particle.speed = Math.random() * 0.05;
-        particle.color = `hsl(${Math.random() * 360}, 100%, 80%)`;
-        state.coin.particleNum = (state.coin.particleNum + 1) % 1000;
-      }
-    }
-
-    randomizeCoinPosition();
-  } else {
-  }
+  Coin.update(dt);
 
   clearInputs();
 
