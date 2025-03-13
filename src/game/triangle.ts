@@ -1,4 +1,5 @@
 import { playSound } from "../audio";
+import { gamePosToCanvasPos } from "./camera";
 import { state } from "./index";
 
 const MAX_TRIANGLE_ENEMIES = 100;
@@ -10,6 +11,8 @@ export function create() {
     }).map(() => ({
       active: false,
       shooting: false,
+      spawnX: 0,
+      spawnY: 0,
       x: 0,
       y: 0,
       countdown: 0,
@@ -30,6 +33,8 @@ export function create() {
   };
 }
 
+const enemySpawnTime = 2000;
+
 export function update(dt: number) {
   // HANDLE TRIANGLE ENEMY STUFF
   //////////////////
@@ -43,8 +48,10 @@ export function update(dt: number) {
     const newEnemy = state.triangle.enemies[state.triangle.num]!;
     newEnemy.active = true;
     newEnemy.x = Math.random() * state.camera.width - state.camera.width / 2;
+    newEnemy.spawnX = newEnemy.x;
     newEnemy.y = Math.random() * state.camera.height - state.camera.height / 2;
-    newEnemy.countdown = 2000;
+    newEnemy.spawnY = newEnemy.y;
+    newEnemy.countdown = enemySpawnTime;
     newEnemy.shooting = false;
 
     // trail
@@ -58,13 +65,15 @@ export function update(dt: number) {
   state.triangle.enemies.forEach((enemy) => {
     if (enemy.active) {
       enemy.countdown -= dt;
-      if (enemy.shooting === false && enemy.countdown <= 0) {
-        enemy.shooting = true;
+      if (enemy.shooting === false) {
         enemy.angle = Math.atan2(
           state.player.y - enemy.y,
           state.player.x - enemy.x,
         );
-        playSound("shoot");
+        if (enemy.countdown <= 0) {
+          enemy.shooting = true;
+          playSound("shoot");
+        }
       }
 
       if (enemy.shooting) {
@@ -107,6 +116,22 @@ export function draw(ctx: CanvasRenderingContext2D) {
   const rotationAngle = performance.now() / 100;
   state.triangle.enemies.forEach((enemy) => {
     if (enemy.active) {
+      if (!enemy.shooting) {
+        ctx.strokeStyle = "red";
+        ctx.globalAlpha = (1 - enemy.countdown / enemySpawnTime) ** 4;
+        ctx.lineWidth = 0.2;
+        ctx.beginPath();
+        {
+          const { x, y } = gamePosToCanvasPos(enemy.spawnX, enemy.spawnY);
+          ctx.moveTo(x, y);
+        }
+        {
+          const { x, y } = gamePosToCanvasPos(state.player.x, state.player.y);
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
       if (enemy.shooting) {
         ctx.fillStyle = "#800";
         ctx.globalAlpha = 0.25;
@@ -158,7 +183,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
         ctx.globalAlpha = 1;
         ctx.fillStyle = "white";
         const timeRemainingToSpawn = Math.max(enemy.countdown, 0);
-        const scale = (1 - timeRemainingToSpawn / 2000) ** 2;
+        const scale = (1 - timeRemainingToSpawn / enemySpawnTime) ** 2;
         ctx.scale(scale, scale);
       }
       ctx.rotate(rotationAngle);

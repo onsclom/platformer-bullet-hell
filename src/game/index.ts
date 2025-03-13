@@ -7,17 +7,18 @@ import Level, { randomLevel } from "./level";
 
 export const levelDimension = 20;
 export const initCamera = {
-  width: 100,
-  height: 100,
+  width: 100 * 1.1,
+  height: 100 * 1.1,
   x: 0,
   y: 0,
   shakeFactor: 1, // 0 to 1
 };
+
+export const tileSize = 5;
 export const topLeftTileOnMap = {
-  x: -initCamera.width / 2,
-  y: initCamera.height / 2,
+  x: (-levelDimension / 2) * tileSize,
+  y: (levelDimension / 2) * tileSize,
 };
-export const tileSize = initCamera.width / levelDimension;
 
 const levelLoadAnimation = {
   type: "loading" as const,
