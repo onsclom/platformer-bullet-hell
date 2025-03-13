@@ -46,16 +46,18 @@ function draw(ctx: CanvasRenderingContext2D) {
     const { x, y } = gamePosToCanvasPos(state.player.x, state.player.y);
     ctx.fillRect(x, y, state.player.width, state.player.height);
   }
-  // draw player hitbox
+
+  // hitbox circle
+  // TODO: make this a heart
   ctx.beginPath();
-  ctx.fillStyle = "#808"; //rgb
-  ctx.arc(
-    state.player.x + state.player.width / 2,
-    -state.player.y + state.player.height / 2,
-    state.player.hitboxRadius,
-    0,
-    2 * Math.PI,
-  );
+  ctx.fillStyle = "#808";
+  {
+    const { x, y } = gamePosToCanvasPos(
+      state.player.x + state.player.width / 2,
+      state.player.y - state.player.height / 2,
+    );
+    ctx.arc(x, y, state.player.hitboxRadius, 0, 2 * Math.PI);
+  }
   ctx.fill();
 }
 

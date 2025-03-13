@@ -403,13 +403,6 @@ export function draw(ctx: CanvasRenderingContext2D) {
     // draw trail
   });
 
-  if (state.player.alive === false) {
-    ctx.fillStyle = "red";
-    ctx.font = "20px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-  }
-
   // SCORE
   ctx.fillStyle = "white";
   ctx.font = "5px Arial";
