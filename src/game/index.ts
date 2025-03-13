@@ -1,7 +1,9 @@
 import { justPressed, clearInputs } from "../input";
 import { playSound } from "../audio";
 import Player from "./player";
-import Coin, { randomizeCoinPosition } from "./coin";
+import Coin, { randomizeCoins } from "./coin";
+import Triangle from "./triangle";
+import Level, { randomLevel } from "./level";
 
 export const levelDimension = 20;
 export const initCamera = {
@@ -17,8 +19,6 @@ export const topLeftTileOnMap = {
 };
 export const tileSize = initCamera.width / levelDimension;
 
-const MAX_TRIANGLE_ENEMIES = 100;
-
 const levelLoadAnimation = {
   type: "loading" as const,
   time: 0,
@@ -31,6 +31,7 @@ const playing = {
 
 const initGameState = {
   ctx: null as CanvasRenderingContext2D | null,
+  physicTimeToProcess: 0,
 
   current: levelLoadAnimation as typeof levelLoadAnimation | typeof playing,
 
@@ -38,37 +39,11 @@ const initGameState = {
   gravity: 250,
   score: 0,
 
-  physicTimeToProcess: 0,
-
   player: Player.create(),
+  triangle: Triangle.create(),
+  coins: Coin.create(),
 
-  triangle: {
-    enemies: Array.from({
-      length: MAX_TRIANGLE_ENEMIES,
-    }).map(() => ({
-      active: false,
-      shooting: false,
-      x: 0,
-      y: 0,
-      countdown: 0,
-      angle: 0,
-      radius: 2,
-      trail: {
-        points: Array.from({ length: 75 }, () => ({
-          x: 0,
-          y: 0,
-        })),
-        num: 0,
-      },
-    })),
-    num: 0,
-    spawnRateMs: 500,
-    speed: 1.5,
-    spawnTimer: 0,
-  },
-
-  coin: Coin.create(),
-  level: randomLevel(),
+  level: Level.create(),
 
   // tile fun visual random effect
   randomEffect: {
@@ -83,24 +58,8 @@ const initGameState = {
   },
 };
 
-function randomLevel() {
-  return Array.from({ length: levelDimension ** 2 }, (_, i) => {
-    const x = i % levelDimension;
-    const y = Math.floor(i / levelDimension);
-    if (
-      x === 0 ||
-      y === 0 ||
-      x === levelDimension - 1 ||
-      y === levelDimension - 1
-    ) {
-      return "solid";
-    }
-    return Math.random() > 0.1 ? "empty" : "solid";
-  });
-}
-
 export const state = structuredClone(initGameState);
-randomizeCoinPosition();
+randomizeCoins();
 
 export function update(dt: number) {
   state.physicTimeToProcess += dt;
@@ -119,7 +78,7 @@ function physicTick(dt: number) {
     Object.assign(state, structuredClone(initGameState));
     clearInputs();
     state.level = randomLevel();
-    randomizeCoinPosition();
+    randomizeCoins();
   }
 
   {
@@ -133,19 +92,6 @@ function physicTick(dt: number) {
         corner.y = Math.random() - 0.5;
       });
     }
-  }
-
-  {
-    // update particles
-    state.coin.particles.forEach((particle) => {
-      if (particle.lifetime > 0) {
-        particle.lifetime -= dt;
-        const dx = Math.cos(particle.angle) * particle.speed * dt;
-        const dy = Math.sin(particle.angle) * particle.speed * dt;
-        particle.tileX += dx;
-        particle.tileY += dy;
-      }
-    });
   }
 
   {
@@ -201,7 +147,6 @@ export function draw(ctx: CanvasRenderingContext2D) {
 
   // CAMERA SHAKE
   //////////////////
-
   const strength = 0.5;
   const xShake =
     Math.cos(performance.now() * 0.05) * state.camera.shakeFactor * strength;
@@ -233,6 +178,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
       );
 
       if (cell === "solid") {
+        // TODO: fix to draw stroke lines on top after all tiles
         drawTile(ctx, x, y, progress);
       }
     }
@@ -251,133 +197,8 @@ export function draw(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = "#99f";
 
   Player.draw(ctx);
-
-  // COIN
-  //////////////////
-  ctx.fillStyle = "yellow";
-
-  const topLeftOfMap = {
-    x: -state.camera.width / 2,
-    y: state.camera.height / 2,
-  };
-  ctx.beginPath();
-  const coinRadius = 1.5;
-  ctx.save();
-  ctx.translate(
-    topLeftOfMap.x + state.coin.x * state.player.width + state.player.width / 2,
-    -topLeftOfMap.y +
-      state.coin.y * state.player.height +
-      state.player.height / 2,
-  );
-
-  ctx.scale(Math.sin(performance.now() * 0.01), 1);
-  ctx.arc(0, 0, coinRadius, 0, 2 * Math.PI);
-  ctx.restore();
-  ctx.fill();
-
-  // draw coin particles
-  state.coin.particles.forEach((particle) => {
-    if (particle.lifetime > 0) {
-      ctx.save();
-      const size = particle.lifetime / particle.lifespan;
-      ctx.beginPath();
-
-      ctx.translate(particle.tileX, -particle.tileY);
-      ctx.scale(size, size);
-      ctx.arc(0, 0, 0.5, 0, 2 * Math.PI);
-      ctx.fillStyle = particle.color;
-      ctx.fill();
-      ctx.restore();
-    }
-  });
-
-  // ENEMIES
-  //////////////////
-  const rotationAngle = performance.now() / 100;
-  state.triangle.enemies.forEach((enemy) => {
-    if (enemy.active) {
-      if (enemy.shooting) {
-        ctx.fillStyle = "#800";
-        ctx.globalAlpha = 0.25;
-        for (let i = 0; i < enemy.trail.points.length; i++) {
-          const point =
-            enemy.trail.points[
-              (i + enemy.trail.num) % enemy.trail.points.length
-            ]!;
-          ctx.save();
-          ctx.translate(point.x, -point.y);
-          ctx.scale(
-            i / enemy.trail.points.length,
-            i / enemy.trail.points.length,
-          );
-          ctx.rotate(rotationAngle);
-          const point1 = 0;
-          const point2 = (2 * Math.PI) / 3;
-          const point3 = (4 * Math.PI) / 3;
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(
-            Math.cos(point1) * enemy.radius,
-            Math.sin(point1) * enemy.radius,
-          );
-          ctx.lineTo(
-            Math.cos(point2) * enemy.radius,
-            Math.sin(point2) * enemy.radius,
-          );
-          ctx.lineTo(
-            Math.cos(point3) * enemy.radius,
-            Math.sin(point3) * enemy.radius,
-          );
-          ctx.lineTo(
-            Math.cos(point1) * enemy.radius,
-            Math.sin(point1) * enemy.radius,
-          );
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
-        }
-        ctx.globalAlpha = 1;
-      }
-
-      // draw head
-      ctx.save();
-      ctx.translate(enemy.x, -enemy.y);
-      ctx.fillStyle = "red";
-      if (enemy.countdown > 0) {
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = "white";
-        const timeRemainingToSpawn = Math.max(enemy.countdown, 0);
-        const scale = (1 - timeRemainingToSpawn / 2000) ** 2;
-        ctx.scale(scale, scale);
-      }
-      ctx.rotate(rotationAngle);
-      const point1 = 0;
-      const point2 = (2 * Math.PI) / 3;
-      const point3 = (4 * Math.PI) / 3;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(
-        Math.cos(point1) * enemy.radius,
-        Math.sin(point1) * enemy.radius,
-      );
-      ctx.lineTo(
-        Math.cos(point2) * enemy.radius,
-        Math.sin(point2) * enemy.radius,
-      );
-      ctx.lineTo(
-        Math.cos(point3) * enemy.radius,
-        Math.sin(point3) * enemy.radius,
-      );
-      ctx.lineTo(
-        Math.cos(point1) * enemy.radius,
-        Math.sin(point1) * enemy.radius,
-      );
-
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
-  });
+  Coin.draw(ctx);
+  Triangle.draw(ctx);
 
   // SCORE
   ctx.fillStyle = "white";
@@ -391,79 +212,8 @@ export function draw(ctx: CanvasRenderingContext2D) {
 function playingPhysicTick(dt: number) {
   Player.update(dt);
   Coin.update(dt);
-
+  Triangle.update(dt);
   clearInputs();
-
-  // HANDLE TRIANGLE ENEMY STUFF
-  //////////////////
-
-  // spawn triangles
-  state.triangle.spawnTimer += dt;
-  if (state.triangle.spawnTimer > state.triangle.spawnRateMs) {
-    state.triangle.spawnTimer -= state.triangle.spawnRateMs;
-    state.triangle.num = (state.triangle.num + 1) % MAX_TRIANGLE_ENEMIES;
-
-    const newEnemy = state.triangle.enemies[state.triangle.num]!;
-    newEnemy.active = true;
-    newEnemy.x = Math.random() * state.camera.width - state.camera.width / 2;
-    newEnemy.y = Math.random() * state.camera.height - state.camera.height / 2;
-    newEnemy.countdown = 2000;
-    newEnemy.shooting = false;
-
-    // trail
-    newEnemy.trail.points.forEach((point) => {
-      point.x = newEnemy.x;
-      point.y = newEnemy.y;
-    });
-  }
-
-  // update all alive triangles
-  state.triangle.enemies.forEach((enemy) => {
-    if (enemy.active) {
-      enemy.countdown -= dt;
-      if (enemy.shooting === false && enemy.countdown <= 0) {
-        enemy.shooting = true;
-        enemy.angle = Math.atan2(
-          state.player.y - enemy.y,
-          state.player.x - enemy.x,
-        );
-        playSound("shoot");
-      }
-
-      if (enemy.shooting) {
-        // move towards angle
-        const speed = 0.05 * state.triangle.speed;
-        enemy.x += Math.cos(enemy.angle) * speed * dt;
-        enemy.y += Math.sin(enemy.angle) * speed * dt;
-
-        // trail
-        enemy.trail.num = (enemy.trail.num + 1) % enemy.trail.points.length;
-        enemy.trail.points[enemy.trail.num] = {
-          x: enemy.x,
-          y: enemy.y,
-        };
-      }
-    }
-  });
-
-  // check if triangle touching player
-  state.triangle.enemies.forEach((enemy) => {
-    if (enemy.shooting) {
-      const distToPlayer = Math.hypot(
-        state.player.x - enemy.x,
-        state.player.y - enemy.y,
-      );
-      const playerTouchingEnemy =
-        distToPlayer <
-        state.player.hitboxRadius +
-          // be lenient to player
-          enemy.radius * 0.5;
-      if (playerTouchingEnemy) {
-        state.player.alive = false;
-        playSound("death");
-      }
-    }
-  });
 }
 
 export function fillRect(

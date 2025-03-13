@@ -39,8 +39,6 @@ function update(dt: number) {
 }
 
 function draw(ctx: CanvasRenderingContext2D) {
-  // PLAYER
-  //////////////////
   {
     const { x, y } = gamePosToCanvasPos(
       state.player.x - state.player.width / 2,
