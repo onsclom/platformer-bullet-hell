@@ -182,20 +182,20 @@ export function draw(ctx: CanvasRenderingContext2D) {
       ctx.save();
       ctx.translate(enemy.x, -enemy.y);
       ctx.fillStyle = "red";
-      if (enemy.countdown > 0) {
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = "white";
-        const timeRemainingToSpawn = Math.max(enemy.countdown, 0);
-        const scale = (1 - timeRemainingToSpawn / enemySpawnTime) ** 2;
-        ctx.scale(scale, scale);
-      }
       ctx.rotate(rotationAngle);
+
+      const timeRemainingToSpawn = Math.max(enemy.countdown, 0);
+      const scale = Math.min(
+        (1 - timeRemainingToSpawn / enemySpawnTime) ** 2,
+        1,
+      );
+
+      ctx.scale(scale, scale);
       const point1 = 0;
       const point2 = (2 * Math.PI) / 3;
       const point3 = (4 * Math.PI) / 3;
       ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(
+      ctx.moveTo(
         Math.cos(point1) * enemy.radius,
         Math.sin(point1) * enemy.radius,
       );
@@ -213,7 +213,14 @@ export function draw(ctx: CanvasRenderingContext2D) {
       );
 
       ctx.closePath();
-      ctx.fill();
+      if (enemy.countdown > 0) {
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 0.2;
+        ctx.globalAlpha = 1;
+        ctx.stroke();
+      } else {
+        ctx.fill();
+      }
       ctx.restore();
     }
   });
