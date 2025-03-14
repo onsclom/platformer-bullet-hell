@@ -4,7 +4,6 @@ import Player from "./player";
 import Coin, { randomizeCoins } from "./coin";
 import Triangle from "./triangle";
 import Level, { randomLevel } from "./level";
-import { canvas } from "../main";
 
 export const levelDimension = 20;
 export const initCamera = {
@@ -32,6 +31,7 @@ const playing = {
   type: "playing" as const,
 };
 
+const waveTimeLength = 60;
 const initGameState = {
   run: {
     state: "playing" as "playing" | "waveRecap" | "shopping" | "gameOver",
@@ -41,7 +41,7 @@ const initGameState = {
     cash: 0,
 
     playing: {
-      runTimeRemaining: 60,
+      waveTimeRemaining: waveTimeLength,
     },
   },
 
@@ -257,25 +257,46 @@ export function draw(ctx: CanvasRenderingContext2D) {
 
   ctx.restore();
   // canvas bounding rect with normal canvas behavior
-  const uiRect = canvas.getBoundingClientRect();
+  const uiRect = ctx.canvas.getBoundingClientRect();
 
   const fontSize = minSide * 0.05;
 
   // ui background rect
-  ctx.fillStyle = "blue";
+  ctx.fillStyle = "black";
   // ctx.globalAlpha = 0.5;
   ctx.fillRect(0, 0, uiRect.width, fontSize);
   ctx.globalAlpha = 1;
 
-  // SCORE
-  ctx.fillStyle = "white";
+  // MONEY
+  ctx.fillStyle = "green";
   ctx.font = `${fontSize}px Arial`;
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
   ctx.fillText(`$${state.run.cash}`, uiRect.width, 0);
+
+  // LIVES
+  ctx.fillStyle = "red";
+  ctx.font = `${fontSize}px Arial`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText(`♥${state.run.lives} `, 0, 0);
+
+  // RUN TIME % REMAINING
+  ctx.fillStyle = "white";
+  ctx.font = `${fontSize}px Arial`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const percentRemaining = Math.ceil(
+    100 - (state.run.playing.waveTimeRemaining / waveTimeLength) * 100,
+  );
+  ctx.fillText(`${percentRemaining}%`, uiRect.width / 2, 0);
 }
 
 function playingPhysicTick(dt: number) {
+  if (state.player.alive) {
+    state.run.playing.waveTimeRemaining -= dt / 1000;
+  }
+
   Player.update(dt);
   Coin.update(dt);
   // TODO: move player/coin collision here

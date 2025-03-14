@@ -1,6 +1,6 @@
 import { playSound } from "../audio";
 import { gamePosToCanvasPos } from "./camera";
-import { state } from "./index";
+import { levelDimension, state, tileSize } from "./index";
 
 const MAX_TRIANGLE_ENEMIES = 100;
 
@@ -48,10 +48,16 @@ export function update(dt: number) {
 
     const newEnemy = state.triangle.enemies[state.triangle.num]!;
     newEnemy.active = true;
-    newEnemy.x = Math.random() * state.camera.width - state.camera.width / 2;
+
+    newEnemy.x =
+      (-(levelDimension - 2) * 0.5 + Math.random() * (levelDimension - 2)) *
+      tileSize;
     newEnemy.spawnX = newEnemy.x;
-    newEnemy.y = Math.random() * state.camera.height - state.camera.height / 2;
+    newEnemy.y =
+      (-(levelDimension - 2) * 0.5 + Math.random() * (levelDimension - 2)) *
+      tileSize;
     newEnemy.spawnY = newEnemy.y;
+
     newEnemy.countdown = enemySpawnTime;
     newEnemy.shooting = false;
 
@@ -79,7 +85,7 @@ export function update(dt: number) {
 
       if (enemy.shooting) {
         // move towards angle
-        const speed = 0.05 * state.triangle.speed;
+        const speed = 0.03 * state.triangle.speed;
         enemy.x += Math.cos(enemy.angle) * speed * dt;
         enemy.y += Math.sin(enemy.angle) * speed * dt;
 
@@ -105,16 +111,23 @@ export function update(dt: number) {
         state.player.hitboxRadius +
           // be lenient to player
           enemy.radius * 0.5;
-      if (playerTouchingEnemy) {
-        state.player.alive = false;
+      if (playerTouchingEnemy && state.player.invincibleTime <= 0) {
         playSound("death");
+        state.run.lives -= 1;
+        // add screenshake
+        state.camera.shakeFactor = 1;
+        if (state.run.lives === 0) {
+          state.player.alive = false;
+        } else {
+          state.player.invincibleTime = 1000;
+        }
       }
     }
   });
 }
 
 export function draw(ctx: CanvasRenderingContext2D) {
-  const rotationAngle = performance.now() / 100;
+  const rotationAngle = performance.now() / 75;
   state.triangle.enemies.forEach((enemy) => {
     if (enemy.active) {
       // laser aim
@@ -123,16 +136,16 @@ export function draw(ctx: CanvasRenderingContext2D) {
         ctx.strokeStyle = "red";
         ctx.globalAlpha = (1 - enemy.countdown / enemySpawnTime) ** 4;
         ctx.lineWidth = 0.1;
-        ctx.beginPath();
-        {
-          const { x, y } = gamePosToCanvasPos(enemy.spawnX, enemy.spawnY);
-          ctx.moveTo(x, y);
-        }
-        {
-          const { x, y } = gamePosToCanvasPos(state.player.x, state.player.y);
-          ctx.lineTo(x, y);
-        }
-        ctx.stroke();
+        // ctx.beginPath();
+        // {
+        //   const { x, y } = gamePosToCanvasPos(enemy.spawnX, enemy.spawnY);
+        //   ctx.moveTo(x, y);
+        // }
+        // {
+        //   const { x, y } = gamePosToCanvasPos(state.player.x, state.player.y);
+        //   ctx.lineTo(x, y);
+        // }
+        // ctx.stroke();
       }
 
       if (enemy.shooting) {

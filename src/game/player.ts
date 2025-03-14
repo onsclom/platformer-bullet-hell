@@ -2,7 +2,13 @@
 import { playSound } from "../audio";
 import { justPressed, justReleased, keysDown } from "../input";
 import { gamePosToCanvasPos } from "./camera";
-import { state, levelDimension, topLeftTileOnMap, animate } from "./index";
+import {
+  state,
+  levelDimension,
+  topLeftTileOnMap,
+  animate,
+  tileSize,
+} from "./index";
 
 const initJumpBufferTime = 150;
 
@@ -12,8 +18,8 @@ function create() {
     x: 0,
     y: 0,
 
-    width: 5,
-    height: 5,
+    width: 4,
+    height: 4,
 
     jumpStrength: 120,
 
@@ -32,15 +38,20 @@ function create() {
     timeSinceJumpBuffered: initJumpBufferTime,
 
     cornerCorrection: 1.5,
+
+    invincibleTime: 0,
   };
 }
 
 function update(dt: number) {
   if (!state.player.alive) return;
+  state.player.invincibleTime -= dt;
   moveAndSlidePlayer(dt);
 }
 
 function draw(ctx: CanvasRenderingContext2D) {
+  if (state.player.invincibleTime > 0) ctx.globalAlpha = 0.5;
+
   {
     const { x, y } = gamePosToCanvasPos(
       state.player.x - state.player.width / 2,
@@ -52,12 +63,23 @@ function draw(ctx: CanvasRenderingContext2D) {
   // hitbox circle
   // TODO: make this a heart
   {
-    ctx.beginPath();
-    ctx.fillStyle = "#808";
+    // ctx.beginPath();
+    // ctx.fillStyle = "#808";
     const { x, y } = gamePosToCanvasPos(state.player.x, state.player.y);
-    ctx.arc(x, y, state.player.hitboxRadius, 0, 2 * Math.PI);
-    ctx.fill();
+    // ctx.arc(x, y, state.player.hitboxRadius, 0, 2 * Math.PI);
+    // ctx.fill();
+
+    // draw unicode heart on hitbox
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "red";
+
+    const heartSize = 2;
+    ctx.font = `${heartSize}px Arial`;
+    ctx.fillText("♥", x, y + heartSize * 0.05);
   }
+
+  ctx.globalAlpha = 1;
 }
 
 export default { create, update, draw };
@@ -88,12 +110,12 @@ function moveAndSlidePlayer(dt: number) {
       if (tile === "solid") {
         // collision
         const tileTopLeft = {
-          x: topLeftTileOnMap.x + tx * state.player.width,
-          y: topLeftTileOnMap.y - ty * state.player.height,
+          x: topLeftTileOnMap.x + tx * tileSize,
+          y: topLeftTileOnMap.y - ty * tileSize,
         };
         const tileBottomRight = {
-          x: tileTopLeft.x + state.player.width,
-          y: tileTopLeft.y - state.player.height,
+          x: tileTopLeft.x + tileSize,
+          y: tileTopLeft.y - tileSize,
         };
         const playerBottomRight = {
           x: state.player.x + state.player.width * 0.5,
@@ -130,12 +152,12 @@ function moveAndSlidePlayer(dt: number) {
       if (tile === "solid") {
         // collision
         const tileTopLeft = {
-          x: topLeftTileOnMap.x + tx * state.player.width,
-          y: topLeftTileOnMap.y - ty * state.player.height,
+          x: topLeftTileOnMap.x + tx * tileSize,
+          y: topLeftTileOnMap.y - ty * tileSize,
         };
         const tileBottomRight = {
-          x: tileTopLeft.x + state.player.width,
-          y: tileTopLeft.y - state.player.height,
+          x: tileTopLeft.x + tileSize,
+          y: tileTopLeft.y - tileSize,
         };
         const playerBottomRight = {
           x: state.player.x + state.player.width * 0.5,
@@ -208,7 +230,7 @@ function moveAndSlidePlayer(dt: number) {
       state.player.timeSinceJumpBuffered = initJumpBufferTime;
       playSound("jump");
     } else {
-      if (justPressed.has(" ")) {
+      if (justPressed.has(" ") || justPressed.has("w")) {
         state.player.timeSinceJumpBuffered = 0;
       }
     }
