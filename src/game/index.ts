@@ -4,13 +4,14 @@ import Player from "./player";
 import Coin, { randomizeCoins } from "./coin";
 import Triangle from "./triangle";
 import Level, { randomLevel } from "./level";
+import { canvas } from "../main";
 
 export const levelDimension = 20;
 export const initCamera = {
   width: 100 * 1.1,
   height: 100 * 1.1,
   x: 0,
-  y: 0,
+  y: 3,
   shakeFactor: 1, // 0 to 1
   angle: 0, // fun juice
 };
@@ -32,6 +33,18 @@ const playing = {
 };
 
 const initGameState = {
+  run: {
+    state: "playing" as "playing" | "waveRecap" | "shopping" | "gameOver",
+
+    lives: 3,
+    wave: 1, // of 10
+    cash: 0,
+
+    playing: {
+      runTimeRemaining: 60,
+    },
+  },
+
   ctx: null as CanvasRenderingContext2D | null,
   physicTimeToProcess: 0,
 
@@ -39,7 +52,6 @@ const initGameState = {
 
   camera: initCamera,
   gravity: 250,
-  score: 0,
 
   player: Player.create(),
   triangle: Triangle.create(),
@@ -125,6 +137,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
   const canvasRect = ctx.canvas.getBoundingClientRect();
   const aspectRatio = 1;
   const minSide = Math.min(canvasRect.width, canvasRect.height);
+
   const letterBoxed = {
     x: (canvasRect.width - minSide * aspectRatio) / 2,
     y: (canvasRect.height - minSide) / 2,
@@ -139,22 +152,33 @@ export function draw(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvasRect.width, canvasRect.height);
 
-  // ctx.fillStyle = "black";
-  // fillRect(
-  //   ctx,
-  //   0.5 * -state.camera.width,
-  //   0.5 * state.camera.height,
-  //   0.5 * state.camera.width,
-  //   0.5 * -state.camera.height,
-  // );
-
+  // LETTERBOX SPACE
+  //////////////////
+  ctx.save();
   ctx.translate(letterBoxed.x, letterBoxed.y);
+
+  // ctx.fillStyle = "black";
+  // ctx.globalAlpha = 0.5;
+  // ctx.fillRect(0, 0, letterBoxed.width, letterBoxed.height);
+
+  ctx.globalAlpha = 1;
   {
     // camera space
     ctx.save();
     ctx.translate(minSide / 2, minSide / 2);
     ctx.scale(minSide / state.camera.width, minSide / state.camera.height);
+
+    // ctx.beginPath();
+    // ctx.rect(
+    //   -state.camera.width / 2,
+    //   -state.camera.height / 2,
+    //   state.camera.width,
+    //   state.camera.height,
+    // );
+    // ctx.clip();
+
     ctx.translate(-state.camera.x, state.camera.y);
+
     // CAMERA SHAKE
     //////////////////
     const strength = 0.5;
@@ -173,16 +197,36 @@ export function draw(ctx: CanvasRenderingContext2D) {
 
     ctx.save();
     ctx.fillStyle = "gray";
-    fillRect(ctx, -50, 50, 50, -50);
+    ctx.fillRect(-50, -50, 100, 100);
     ctx.restore();
 
     if (state.current.type === "loading") {
+      // for (let i = 0; i < state.level.length; i++) {
+      //   const cell = state.level[i];
+      //   const x = i % levelDimension;
+      //   const y = Math.floor(i / levelDimension);
+      //   const loadStart =
+      //     (state.current.loadAnimationLength - tileLoadInTime) *
+      //     (((x + y) / levelDimension) * 0.5);
+      //   const progress = Math.max(
+      //     0,
+      //     Math.min(1, (state.current.time - loadStart) / tileLoadInTime),
+      //   );
+      //   if (cell === "solid") {
+      //     // TODO: fix to draw stroke lines on top after all tiles
+      //     drawTile(ctx, x, y, progress);
+      //   }
+      // }
+      // ctx.fillStyle = "#99f";
+      // return;
+    }
+
+    state.level.forEach((cell, i) => {
+      const x = i % levelDimension;
+      const y = Math.floor(i / levelDimension);
       const tileLoadInTime = 500;
 
-      for (let i = 0; i < state.level.length; i++) {
-        const cell = state.level[i];
-        const x = i % levelDimension;
-        const y = Math.floor(i / levelDimension);
+      if (state.current.type === "loading") {
         const loadStart =
           (state.current.loadAnimationLength - tileLoadInTime) *
           (((x + y) / levelDimension) * 0.5);
@@ -191,22 +235,13 @@ export function draw(ctx: CanvasRenderingContext2D) {
           0,
           Math.min(1, (state.current.time - loadStart) / tileLoadInTime),
         );
-
         if (cell === "solid") {
-          // TODO: fix to draw stroke lines on top after all tiles
           drawTile(ctx, x, y, progress);
         }
-      }
-      ctx.fillStyle = "#99f";
-
-      return;
-    }
-
-    state.level.forEach((cell, i) => {
-      const x = i % levelDimension;
-      const y = Math.floor(i / levelDimension);
-      if (cell === "solid") {
-        drawTile(ctx, x, y);
+      } else {
+        if (cell === "solid") {
+          drawTile(ctx, x, y);
+        }
       }
     });
     ctx.fillStyle = "#99f";
@@ -218,14 +253,26 @@ export function draw(ctx: CanvasRenderingContext2D) {
   }
 
   // UI SPACE
+  //////////////////
+
+  ctx.restore();
+  // canvas bounding rect with normal canvas behavior
+  const uiRect = canvas.getBoundingClientRect();
+
+  const fontSize = minSide * 0.05;
+
+  // ui background rect
+  ctx.fillStyle = "blue";
+  // ctx.globalAlpha = 0.5;
+  ctx.fillRect(0, 0, uiRect.width, fontSize);
+  ctx.globalAlpha = 1;
 
   // SCORE
   ctx.fillStyle = "white";
-  const fontSize = minSide * 0.05;
   ctx.font = `${fontSize}px Arial`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(`${state.score}`, minSide * 0.5, fontSize);
+  ctx.textAlign = "right";
+  ctx.textBaseline = "top";
+  ctx.fillText(`$${state.run.cash}`, uiRect.width, 0);
 }
 
 function playingPhysicTick(dt: number) {
@@ -261,16 +308,6 @@ function playingPhysicTick(dt: number) {
   clearInputs();
 }
 
-export function fillRect(
-  ctx: CanvasRenderingContext2D,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-) {
-  ctx.fillRect(x1, -y1, x2 - x1, -y2 + y1);
-}
-
 function fillQuad(
   ctx: CanvasRenderingContext2D,
   x1: number,
@@ -298,11 +335,10 @@ function drawTile(
   loadProgress = 1,
 ) {
   ctx.save();
-  // ctx.scale(loadProgress, loadProgress);
-  ctx.globalAlpha = loadProgress;
+  ctx.globalAlpha = loadProgress ** 2;
   ctx.translate(
     0,
-    -Math.sin(loadProgress * Math.PI) * 5 + (1 - loadProgress) * 5,
+    -Math.sin(loadProgress ** 2 * Math.PI) * 5 + (1 - loadProgress ** 2) * 5,
   );
 
   const r1 = state.randomEffect.corners[y * (levelDimension + 1) + x];

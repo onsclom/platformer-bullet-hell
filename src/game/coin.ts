@@ -39,7 +39,7 @@ export function update(dt: number) {
       state.player.y - state.player.height / 2 < coinInWorldPos.y;
     const playerTouchingCoin = touchingCoinX && touchingCoinY;
     if (playerTouchingCoin) {
-      state.score += 1;
+      state.run.cash += 1;
       state.camera.shakeFactor += 0.4;
       playSound("coin");
       {

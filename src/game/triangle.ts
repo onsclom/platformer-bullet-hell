@@ -117,6 +117,8 @@ export function draw(ctx: CanvasRenderingContext2D) {
   const rotationAngle = performance.now() / 100;
   state.triangle.enemies.forEach((enemy) => {
     if (enemy.active) {
+      // laser aim
+      // TODO: decay this somehow on shoot?
       if (!enemy.shooting) {
         ctx.strokeStyle = "red";
         ctx.globalAlpha = (1 - enemy.countdown / enemySpawnTime) ** 4;
