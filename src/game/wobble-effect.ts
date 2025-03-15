@@ -1,4 +1,5 @@
-import { levelDimension, state } from "./index";
+import { state } from "./index";
+import { levelDimension } from "./tiles";
 
 export function create() {
   return {

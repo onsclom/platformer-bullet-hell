@@ -1,6 +1,6 @@
 import { playSound } from "../audio";
-import { gamePosToCanvasPos } from "./camera";
-import { levelDimension, state, tileSize } from "./index";
+import { state } from "./index";
+import { levelDimension, tileSize } from "./tiles";
 
 const MAX_TRIANGLE_ENEMIES = 100;
 
@@ -36,7 +36,7 @@ export function create() {
 const enemySpawnTime = 5000;
 
 export function update(dt: number) {
-  if (state.current.type === "loading") return;
+  if (state.loadAnimationRemaining > 0) return;
   if (!state.player.alive) return;
   // HANDLE TRIANGLE ENEMY STUFF
   //////////////////

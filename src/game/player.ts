@@ -1,14 +1,9 @@
 // TODO: remove need for everything but state?
 import { playSound } from "../audio";
 import { justPressed, justReleased, keysDown } from "../input";
-import { gamePosToCanvasPos } from "./camera";
-import {
-  state,
-  levelDimension,
-  topLeftTileOnMap,
-  animate,
-  tileSize,
-} from "./index";
+import { animate, gamePosToCanvasPos } from "./camera";
+import { state } from "./index";
+import { levelDimension, tileSize, topLeftTileOnMap } from "./tiles";
 
 const initJumpBufferTime = 150;
 const gravity = 250;
@@ -45,7 +40,7 @@ function create() {
 }
 
 function update(dt: number) {
-  if (!state.player.alive || state.current.type === "loading") return;
+  if (!state.player.alive || state.loadAnimationRemaining > 0) return;
   state.player.invincibleTime -= dt;
   moveAndSlidePlayer(dt);
 }
@@ -54,6 +49,7 @@ function draw(ctx: CanvasRenderingContext2D) {
   if (state.player.invincibleTime > 0) ctx.globalAlpha = 0.5;
 
   {
+    ctx.fillStyle = "#99f";
     const { x, y } = gamePosToCanvasPos(
       state.player.x - state.player.width / 2,
       state.player.y + state.player.height / 2,

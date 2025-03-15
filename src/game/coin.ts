@@ -1,5 +1,7 @@
 import { playSound } from "../audio";
-import { levelDimension, state, tileSize, topLeftTileOnMap } from "./index";
+import { state } from "./index";
+import { randomizeCoinPos } from "./randomize-coin-pos";
+import { tileSize, topLeftTileOnMap } from "./tiles";
 
 const coinAmount = 2;
 
@@ -23,7 +25,7 @@ export function create() {
 }
 
 export function update(dt: number) {
-  if (state.current.type === "loading") return;
+  if (state.loadAnimationRemaining > 0) return;
   for (let i = 0; i < state.coins.positions.length; i++) {
     const coin = state.coins.positions[i]!;
     const coinInWorldPos = {
@@ -113,15 +115,6 @@ export function draw(ctx: CanvasRenderingContext2D) {
 }
 
 export default { create, update, draw };
-
-function randomizeCoinPos(coinPos: { x: number; y: number }) {
-  while (true) {
-    coinPos.x = Math.floor(Math.random() * levelDimension);
-    coinPos.y = Math.floor(Math.random() * levelDimension);
-    const tileAtXY = state.level[coinPos.y * levelDimension + coinPos.x];
-    if (tileAtXY === "empty") break;
-  }
-}
 
 export function randomizeCoins() {
   for (const coin of state.coins.positions) {
