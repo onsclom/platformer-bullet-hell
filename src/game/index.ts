@@ -4,16 +4,11 @@ import Player from "./player";
 import Coin, { randomizeCoins } from "./coin";
 import Triangle from "./triangle";
 import Level, { randomLevel } from "./level";
+import Camera from "./camera";
+import WobbleEffect from "./wobble-effect";
+import wobbleEffect from "./wobble-effect";
 
 export const levelDimension = 20;
-export const initCamera = {
-  width: 100 * 1.1,
-  height: 100 * 1.1,
-  x: 0,
-  y: 3,
-  shakeFactor: 1, // 0 to 1
-  angle: 0, // fun juice
-};
 
 export const tileSize = 5;
 export const topLeftTileOnMap = {
@@ -33,6 +28,12 @@ const playing = {
 
 const waveTimeLength = 60;
 const initGameState = {
+  ctx: null as CanvasRenderingContext2D | null,
+  physicTimeToProcess: 0,
+
+  // TODO: move current into run?
+  current: levelLoadAnimation as typeof levelLoadAnimation | typeof playing,
+
   run: {
     state: "playing" as "playing" | "waveRecap" | "shopping" | "gameOver",
 
@@ -45,31 +46,13 @@ const initGameState = {
     },
   },
 
-  ctx: null as CanvasRenderingContext2D | null,
-  physicTimeToProcess: 0,
-
-  current: levelLoadAnimation as typeof levelLoadAnimation | typeof playing,
-
-  camera: initCamera,
-  gravity: 250,
+  camera: Camera.create(),
 
   player: Player.create(),
   triangle: Triangle.create(),
   coins: Coin.create(),
-
   level: Level.create(),
-
-  // tile fun visual random effect
-  randomEffect: {
-    changesPerSecond: 3,
-    timeSinceLastChange: 0,
-    corners: Array.from({
-      length: (levelDimension + 1) ** 2,
-    }).map(() => ({
-      x: Math.random() - 0.5,
-      y: Math.random() - 0.5,
-    })),
-  },
+  wobbleEffect: WobbleEffect.create(),
 };
 
 export const state = structuredClone(initGameState);
@@ -90,47 +73,34 @@ export function update(dt: number) {
 function physicTick(dt: number) {
   if (justPressed.has("r")) {
     Object.assign(state, structuredClone(initGameState));
-    clearInputs();
     state.level = randomLevel();
     randomizeCoins();
   }
 
-  {
-    // random wobble effect on tiles
-    state.randomEffect.timeSinceLastChange += dt;
-    const timePerChange = 1000 / state.randomEffect.changesPerSecond;
-    if (state.randomEffect.timeSinceLastChange > timePerChange) {
-      state.randomEffect.timeSinceLastChange -= timePerChange;
-      state.randomEffect.corners.forEach((corner) => {
-        corner.x = Math.random() - 0.5;
-        corner.y = Math.random() - 0.5;
-      });
-    }
-  }
+  WobbleEffect.update(dt);
+  Camera.update(dt);
 
-  {
-    // screen shake
-    const shakeLength = 0.1;
-    state.camera.shakeFactor *= (0.9 * shakeLength) ** (dt / 1000);
-  }
+  // remove this if possible?
+  // switch (state.current.type) {
+  //   case "loading": {
+  //     if (state.current.time === 0) {
+  //       playSound("levelLoad");
+  //     }
+  //     state.current.time += dt;
 
-  switch (state.current.type) {
-    case "loading": {
-      if (state.current.time === 0) {
-        playSound("levelLoad");
-      }
-      state.current.time += dt;
+  //     if (state.current.time > state.current.loadAnimationLength) {
+  //       state.current = playing;
+  //     }
+  //     break;
+  //   }
+  //   case "playing": {
+  //     playingPhysicTick(dt);
+  //     break;
+  //   }
+  // }
+  playingPhysicTick(dt);
 
-      if (state.current.time > state.current.loadAnimationLength) {
-        state.current = playing;
-      }
-      break;
-    }
-    case "playing": {
-      playingPhysicTick(dt);
-      break;
-    }
-  }
+  clearInputs();
 }
 
 export function draw(ctx: CanvasRenderingContext2D) {
@@ -157,26 +127,12 @@ export function draw(ctx: CanvasRenderingContext2D) {
   ctx.save();
   ctx.translate(letterBoxed.x, letterBoxed.y);
 
-  // ctx.fillStyle = "black";
-  // ctx.globalAlpha = 0.5;
-  // ctx.fillRect(0, 0, letterBoxed.width, letterBoxed.height);
-
   ctx.globalAlpha = 1;
   {
     // camera space
     ctx.save();
     ctx.translate(minSide / 2, minSide / 2);
     ctx.scale(minSide / state.camera.width, minSide / state.camera.height);
-
-    // ctx.beginPath();
-    // ctx.rect(
-    //   -state.camera.width / 2,
-    //   -state.camera.height / 2,
-    //   state.camera.width,
-    //   state.camera.height,
-    // );
-    // ctx.clip();
-
     ctx.translate(-state.camera.x, state.camera.y);
 
     // CAMERA SHAKE
@@ -199,27 +155,6 @@ export function draw(ctx: CanvasRenderingContext2D) {
     ctx.fillStyle = "gray";
     ctx.fillRect(-50, -50, 100, 100);
     ctx.restore();
-
-    if (state.current.type === "loading") {
-      // for (let i = 0; i < state.level.length; i++) {
-      //   const cell = state.level[i];
-      //   const x = i % levelDimension;
-      //   const y = Math.floor(i / levelDimension);
-      //   const loadStart =
-      //     (state.current.loadAnimationLength - tileLoadInTime) *
-      //     (((x + y) / levelDimension) * 0.5);
-      //   const progress = Math.max(
-      //     0,
-      //     Math.min(1, (state.current.time - loadStart) / tileLoadInTime),
-      //   );
-      //   if (cell === "solid") {
-      //     // TODO: fix to draw stroke lines on top after all tiles
-      //     drawTile(ctx, x, y, progress);
-      //   }
-      // }
-      // ctx.fillStyle = "#99f";
-      // return;
-    }
 
     state.level.forEach((cell, i) => {
       const x = i % levelDimension;
@@ -286,14 +221,21 @@ export function draw(ctx: CanvasRenderingContext2D) {
   ctx.font = `${fontSize}px Arial`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  const percentRemaining = Math.ceil(
+  const percentRemaining = Math.floor(
     100 - (state.run.playing.waveTimeRemaining / waveTimeLength) * 100,
   );
   ctx.fillText(`${percentRemaining}%`, uiRect.width / 2, 0);
 }
 
 function playingPhysicTick(dt: number) {
-  if (state.player.alive) {
+  if (state.current.type === "loading") {
+    state.current.time += dt;
+    if (state.current.time > state.current.loadAnimationLength) {
+      state.current = playing;
+    }
+  }
+
+  if (state.player.alive && state.current.type === "playing") {
     state.run.playing.waveTimeRemaining -= dt / 1000;
   }
 
@@ -321,12 +263,6 @@ function playingPhysicTick(dt: number) {
     state.camera.angle =
       Math.sin(performance.now() * 0.005) * wobbleFactor * 0.1;
   }
-
-  // camera following player
-  // state.camera.x = state.player.x;
-  // state.camera.y = state.player.y;
-
-  clearInputs();
 }
 
 function fillQuad(
@@ -362,10 +298,10 @@ function drawTile(
     -Math.sin(loadProgress ** 2 * Math.PI) * 5 + (1 - loadProgress ** 2) * 5,
   );
 
-  const r1 = state.randomEffect.corners[y * (levelDimension + 1) + x];
-  const r2 = state.randomEffect.corners[y * (levelDimension + 1) + x + 1];
-  const r3 = state.randomEffect.corners[(y + 1) * (levelDimension + 1) + x + 1];
-  const r4 = state.randomEffect.corners[(y + 1) * (levelDimension + 1) + x];
+  const r1 = state.wobbleEffect.corners[y * (levelDimension + 1) + x];
+  const r2 = state.wobbleEffect.corners[y * (levelDimension + 1) + x + 1];
+  const r3 = state.wobbleEffect.corners[(y + 1) * (levelDimension + 1) + x + 1];
+  const r4 = state.wobbleEffect.corners[(y + 1) * (levelDimension + 1) + x];
   assert(r1);
   assert(r2);
   assert(r3);

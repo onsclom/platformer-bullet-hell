@@ -11,6 +11,7 @@ import {
 } from "./index";
 
 const initJumpBufferTime = 150;
+const gravity = 250;
 
 function create() {
   return {
@@ -44,7 +45,7 @@ function create() {
 }
 
 function update(dt: number) {
-  if (!state.player.alive) return;
+  if (!state.player.alive || state.current.type === "loading") return;
   state.player.invincibleTime -= dt;
   moveAndSlidePlayer(dt);
 }
@@ -142,7 +143,7 @@ function moveAndSlidePlayer(dt: number) {
     }
   }
 
-  state.player.dy -= state.gravity * (dt / 1000);
+  state.player.dy -= gravity * (dt / 1000);
   state.player.y += state.player.dy * (dt / 1000);
   {
     for (let i = 0; i < levelDimension ** 2; i++) {

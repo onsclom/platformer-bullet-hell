@@ -23,6 +23,7 @@ export function create() {
 }
 
 export function update(dt: number) {
+  if (state.current.type === "loading") return;
   for (let i = 0; i < state.coins.positions.length; i++) {
     const coin = state.coins.positions[i]!;
     const coinInWorldPos = {

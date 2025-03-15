@@ -36,6 +36,7 @@ export function create() {
 const enemySpawnTime = 5000;
 
 export function update(dt: number) {
+  if (state.current.type === "loading") return;
   if (!state.player.alive) return;
   // HANDLE TRIANGLE ENEMY STUFF
   //////////////////
