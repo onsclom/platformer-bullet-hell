@@ -1,4 +1,4 @@
-import { state } from "./index";
+import { State } from "./index";
 import { levelDimension } from "./tiles";
 
 export function create() {
@@ -14,7 +14,7 @@ export function create() {
   };
 }
 
-export function update(dt: number) {
+export function update(state: State, dt: number) {
   // random wobble effect on tiles
   state.wobbleEffect.timeSinceLastChange += dt;
   const timePerChange = 1000 / state.wobbleEffect.changesPerSecond;
@@ -27,6 +27,6 @@ export function update(dt: number) {
   }
 }
 
-export function draw(ctx: CanvasRenderingContext2D) {}
+export function draw(state: State, ctx: CanvasRenderingContext2D) {}
 
 export default { create, update, draw };

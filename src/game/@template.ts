@@ -1,11 +1,11 @@
-import { state } from "./index";
+import { State } from "./index";
 
 export function create() {
   return {};
 }
 
-export function update(dt: number) {}
+export function update(state: State, dt: number) {}
 
-export function draw(ctx: CanvasRenderingContext2D) {}
+export function draw(state: State, ctx: CanvasRenderingContext2D) {}
 
 export default { create, update, draw };

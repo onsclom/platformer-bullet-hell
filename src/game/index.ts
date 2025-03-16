@@ -11,39 +11,39 @@ import UI from "./ui";
 export const loadAnimationLength = 1500;
 export const waveTimeLength = 60;
 
-const initGameState = {
-  ctx: null as CanvasRenderingContext2D | null,
+export type State = ReturnType<typeof create>;
 
-  loadAnimationRemaining: loadAnimationLength,
-  run: {
-    state: "playing" as "playing" | "waveRecap" | "shopping" | "gameOver",
-    lives: 3,
-    wave: 1, // of 10
-    cash: 0,
+export function create() {
+  const state = {
+    loadAnimationRemaining: loadAnimationLength,
+    run: {
+      state: "playing" as "playing" | "waveRecap" | "shopping" | "gameOver",
+      lives: 3,
+      wave: 1, // of 10
+      cash: 0,
 
-    playing: {
-      waveTimeRemaining: waveTimeLength,
+      playing: {
+        waveTimeRemaining: waveTimeLength,
+      },
     },
-  },
 
-  camera: Camera.create(),
-  player: Player.create(),
-  triangle: Triangle.create(),
-  coins: Coin.create(),
-  level: Tiles.create(),
-  wobbleEffect: WobbleEffect.create(),
-  portal: Portal.create(),
-};
+    camera: Camera.create(),
+    player: Player.create(),
+    triangle: Triangle.create(),
+    coins: Coin.create(),
+    level: Tiles.create(),
+    wobbleEffect: WobbleEffect.create(),
+    portal: Portal.create(),
+  };
+  randomizeCoins(state);
+  return state;
+}
 
-export const state = structuredClone(initGameState);
-randomizeCoins();
-
-export function update(dt: number) {
+export function update(state: State, dt: number) {
   if (justPressed.has("r")) {
-    Object.assign(state, structuredClone(initGameState));
-    state.level = randomLevel();
-    randomizeCoins();
+    Object.assign(state, create());
   }
+
   if (state.loadAnimationRemaining > 0) {
     state.loadAnimationRemaining -= dt;
   }
@@ -51,18 +51,18 @@ export function update(dt: number) {
     state.run.playing.waveTimeRemaining -= dt / 1000;
   }
 
-  WobbleEffect.update(dt);
-  Camera.update(dt);
-  Player.update(dt);
-  Coin.update(dt);
-  Portal.update(dt);
-  // Triangle.update(dt);
-  Camera.update(dt);
+  WobbleEffect.update(state, dt);
+  Camera.update(state, dt);
+  Player.update(state, dt);
+  Coin.update(state, dt);
+  Portal.update(state, dt);
+  // Triangle.update(state, dt);
+  Camera.update(state, dt);
 
   clearInputs();
 }
 
-export function draw(ctx: CanvasRenderingContext2D) {
+export function draw(state: State, ctx: CanvasRenderingContext2D) {
   const canvasRect = ctx.canvas.getBoundingClientRect();
   const aspectRatio = 1;
   const minSide = Math.min(canvasRect.width, canvasRect.height);
@@ -105,11 +105,11 @@ export function draw(ctx: CanvasRenderingContext2D) {
     ctx.rotate(state.camera.angle);
     ctx.translate(-state.camera.x, state.camera.y);
 
-    Tiles.draw(ctx);
-    Portal.draw(ctx);
-    Player.draw(ctx);
-    Coin.draw(ctx);
-    Triangle.draw(ctx);
+    Tiles.draw(state, ctx);
+    Portal.draw(state, ctx);
+    Player.draw(state, ctx);
+    Coin.draw(state, ctx);
+    Triangle.draw(state, ctx);
     ctx.restore();
   }
 
@@ -117,5 +117,5 @@ export function draw(ctx: CanvasRenderingContext2D) {
   //////////////////
 
   ctx.restore();
-  UI.draw(ctx);
+  UI.draw(state, ctx);
 }

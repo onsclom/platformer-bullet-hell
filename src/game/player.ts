@@ -2,7 +2,7 @@
 import { playSound } from "../audio";
 import { justPressed, justReleased, keysDown } from "../input";
 import { animate, gamePosToCanvasPos } from "./camera";
-import { state } from "./index";
+import { State } from "./index";
 import { levelDimension, tileSize, topLeftTileOnMap } from "./tiles";
 
 const initJumpBufferTime = 150;
@@ -39,13 +39,13 @@ function create() {
   };
 }
 
-function update(dt: number) {
+function update(state: State, dt: number) {
   if (!state.player.alive || state.loadAnimationRemaining > 0) return;
   state.player.invincibleTime -= dt;
-  moveAndSlidePlayer(dt);
+  moveAndSlidePlayer(state, dt);
 }
 
-function draw(ctx: CanvasRenderingContext2D) {
+function draw(state: State, ctx: CanvasRenderingContext2D) {
   if (state.player.invincibleTime > 0) ctx.globalAlpha = 0.5;
 
   const { x, y } = gamePosToCanvasPos(
@@ -85,7 +85,7 @@ function draw(ctx: CanvasRenderingContext2D) {
 
 export default { create, update, draw };
 
-function moveAndSlidePlayer(dt: number) {
+function moveAndSlidePlayer(state: State, dt: number) {
   if (justReleased.has(" ") || justReleased.has("w")) {
     if (state.player.dy > 0) {
       state.player.dy /= 2;

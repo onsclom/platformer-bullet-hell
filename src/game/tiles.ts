@@ -1,4 +1,4 @@
-import { loadAnimationLength, state } from "./index";
+import { loadAnimationLength, State } from "./index";
 import { assert } from "./assert";
 
 export const levelDimension = 20;
@@ -28,9 +28,9 @@ export function randomLevel() {
   });
 }
 
-export function update(dt: number) {}
+export function update(state: State, dt: number) {}
 
-export function draw(ctx: CanvasRenderingContext2D) {
+export function draw(state: State, ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = "gray";
   ctx.fillRect(-50, -50, 100, 100);
 
@@ -53,11 +53,11 @@ export function draw(ctx: CanvasRenderingContext2D) {
         ),
       );
       if (cell === "solid") {
-        drawTile(ctx, x, y, progress);
+        drawTile(state, ctx, x, y, progress);
       }
     } else {
       if (cell === "solid") {
-        drawTile(ctx, x, y);
+        drawTile(state, ctx, x, y);
       }
     }
   });
@@ -66,6 +66,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
 export default { create, update, draw };
 
 function drawTile(
+  state: State,
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,

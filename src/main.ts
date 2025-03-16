@@ -1,4 +1,4 @@
-import { update, draw, state } from "./game";
+import { update, draw, create } from "./game";
 import { clearInputs } from "./input";
 
 export const canvas = document.createElement("canvas");
@@ -8,7 +8,8 @@ canvas.style.position = "fixed";
 canvas.style.top = "0";
 canvas.style.left = "0";
 document.body.appendChild(canvas);
-state.ctx = canvas.getContext("2d")!;
+
+let state = create();
 
 const LOG_FRAME_TIMES = false;
 
@@ -37,11 +38,11 @@ function raf() {
     while (timeToProcess > physicTickMs) {
       timeToProcess -= physicTickMs;
       const dt = physicTickMs;
-      update(dt);
+      update(state, dt);
       clearInputs();
     }
 
-    draw(ctx);
+    draw(state, ctx);
   }
   if (LOG_FRAME_TIMES) console.timeEnd("frame");
 }

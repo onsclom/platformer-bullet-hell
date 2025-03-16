@@ -1,5 +1,5 @@
 import { playSound } from "../audio";
-import { state } from "./index";
+import { State } from "./index";
 import { levelDimension, tileSize } from "./tiles";
 
 const MAX_TRIANGLE_ENEMIES = 100;
@@ -35,7 +35,7 @@ export function create() {
 
 const enemySpawnTime = 5000;
 
-export function update(dt: number) {
+export function update(state: State, dt: number) {
   if (state.loadAnimationRemaining > 0) return;
   if (!state.player.alive) return;
   // HANDLE TRIANGLE ENEMY STUFF
@@ -127,7 +127,7 @@ export function update(dt: number) {
   });
 }
 
-export function draw(ctx: CanvasRenderingContext2D) {
+export function draw(state: State, ctx: CanvasRenderingContext2D) {
   const rotationAngle = performance.now() / 75;
   state.triangle.enemies.forEach((enemy) => {
     if (enemy.active) {

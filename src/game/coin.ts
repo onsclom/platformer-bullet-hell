@@ -1,5 +1,5 @@
 import { playSound } from "../audio";
-import { state } from "./index";
+import { State } from "./index";
 import { randomizeCoinPos } from "./randomize-coin-pos";
 import { tileSize, topLeftTileOnMap } from "./tiles";
 
@@ -24,7 +24,7 @@ export function create() {
   };
 }
 
-export function update(dt: number) {
+export function update(state: State, dt: number) {
   if (state.loadAnimationRemaining > 0) return;
   for (let i = 0; i < state.coins.positions.length; i++) {
     const coin = state.coins.positions[i]!;
@@ -61,7 +61,7 @@ export function update(dt: number) {
           state.coins.particleNum = (state.coins.particleNum + 1) % 1000;
         }
       }
-      randomizeCoinPos(coin);
+      randomizeCoinPos(state, coin);
     }
   }
 
@@ -79,7 +79,7 @@ export function update(dt: number) {
   }
 }
 
-export function draw(ctx: CanvasRenderingContext2D) {
+export function draw(state: State, ctx: CanvasRenderingContext2D) {
   for (const coin of state.coins.positions) {
     ctx.fillStyle = "yellow";
 
@@ -116,8 +116,8 @@ export function draw(ctx: CanvasRenderingContext2D) {
 
 export default { create, update, draw };
 
-export function randomizeCoins() {
+export function randomizeCoins(state: State) {
   for (const coin of state.coins.positions) {
-    randomizeCoinPos(coin);
+    randomizeCoinPos(state, coin);
   }
 }

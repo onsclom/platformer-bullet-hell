@@ -1,4 +1,4 @@
-import { state } from "./index";
+import { State } from "./index";
 import { levelDimension, tileSize, topLeftTileOnMap } from "./tiles";
 
 const MAX_PARTICLES = 10000;
@@ -25,7 +25,7 @@ export function create() {
   };
 }
 
-export function update(dt: number) {
+export function update(state: State, dt: number) {
   if (state.portal.foundPos === false) {
     while (true) {
       state.portal.tileX = Math.floor(Math.random() * levelDimension);
@@ -66,7 +66,7 @@ export function update(dt: number) {
   }
 }
 
-export function draw(ctx: CanvasRenderingContext2D) {
+export function draw(state: State, ctx: CanvasRenderingContext2D) {
   // const portalActive = state.run.playing.waveTimeRemaining <= 0;
   // if (!portalActive) return;
 
