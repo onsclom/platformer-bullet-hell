@@ -5,6 +5,7 @@ import Triangle from "./triangle";
 import Tiles, { randomLevel } from "./tiles";
 import Camera from "./camera";
 import WobbleEffect from "./wobble-effect";
+import Portal from "./portal";
 import UI from "./ui";
 
 export const loadAnimationLength = 1500;
@@ -12,7 +13,6 @@ export const waveTimeLength = 60;
 
 const initGameState = {
   ctx: null as CanvasRenderingContext2D | null,
-  physicTimeToProcess: 0,
 
   loadAnimationRemaining: loadAnimationLength,
   run: {
@@ -32,24 +32,13 @@ const initGameState = {
   coins: Coin.create(),
   level: Tiles.create(),
   wobbleEffect: WobbleEffect.create(),
+  portal: Portal.create(),
 };
 
 export const state = structuredClone(initGameState);
 randomizeCoins();
 
 export function update(dt: number) {
-  state.physicTimeToProcess += dt;
-  const physicHz = 500;
-  const physicTickMs = 1000 / physicHz;
-  while (state.physicTimeToProcess > physicTickMs) {
-    state.physicTimeToProcess -= physicTickMs;
-    const dt = physicTickMs;
-    physicTick(dt);
-    clearInputs();
-  }
-}
-
-function physicTick(dt: number) {
   if (justPressed.has("r")) {
     Object.assign(state, structuredClone(initGameState));
     state.level = randomLevel();
@@ -66,9 +55,8 @@ function physicTick(dt: number) {
   Camera.update(dt);
   Player.update(dt);
   Coin.update(dt);
-  // TODO: move player/coin collision here
+  Portal.update(dt);
   Triangle.update(dt);
-  // TODO: move player/tri collision here
   Camera.update(dt);
 
   clearInputs();
@@ -119,6 +107,7 @@ export function draw(ctx: CanvasRenderingContext2D) {
 
     Tiles.draw(ctx);
     Player.draw(ctx);
+    Portal.draw(ctx);
     Coin.draw(ctx);
     Triangle.draw(ctx);
     ctx.restore();

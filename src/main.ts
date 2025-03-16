@@ -1,4 +1,5 @@
 import { update, draw, state } from "./game";
+import { clearInputs } from "./input";
 
 export const canvas = document.createElement("canvas");
 canvas.style.width = "100%";
@@ -12,6 +13,7 @@ state.ctx = canvas.getContext("2d")!;
 const LOG_FRAME_TIMES = false;
 
 let previousTime = performance.now();
+let timeToProcess = 0;
 function raf() {
   if (LOG_FRAME_TIMES) console.time("frame");
   {
@@ -29,7 +31,16 @@ function raf() {
     if (!ctx) return;
     ctx.scale(devicePixelRatio, devicePixelRatio);
 
-    update(dt);
+    timeToProcess += dt;
+    const physicHz = 500;
+    const physicTickMs = 1000 / physicHz;
+    while (timeToProcess > physicTickMs) {
+      timeToProcess -= physicTickMs;
+      const dt = physicTickMs;
+      update(dt);
+      clearInputs();
+    }
+
     draw(ctx);
   }
   if (LOG_FRAME_TIMES) console.timeEnd("frame");
