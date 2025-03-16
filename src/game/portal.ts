@@ -60,7 +60,7 @@ export function update(dt: number) {
       ]!;
     if (particle.lifeTime > 0) {
       particle.lifeTime -= dt;
-      const rotationSpeed = 0.002;
+      const rotationSpeed = 0.003;
       particle.angle += dt * rotationSpeed;
     }
   }
