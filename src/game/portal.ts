@@ -1,9 +1,10 @@
 import { state } from "./index";
 import { levelDimension, tileSize, topLeftTileOnMap } from "./tiles";
 
-const MAX_PARTICLES = 100000;
+const MAX_PARTICLES = 10000;
 const particleLifetime = 1000;
-const particleSpawnInterval = 3;
+const particleSpawnInterval = 1;
+const portalRadius = 1.5; // factor of tile size
 
 export function create() {
   return {
@@ -42,29 +43,32 @@ export function update(dt: number) {
 
   // spawn particles
   state.portal.particle.particleTime += dt;
-  if (state.portal.particle.particleTime > particleSpawnInterval) {
+  while (state.portal.particle.particleTime > particleSpawnInterval) {
     state.portal.particle.particleTime -= particleSpawnInterval;
     const particle =
       state.portal.particle.instances[state.portal.particle.num]!;
     particle.angle = Math.random() * Math.PI * 2;
     particle.lifeTime = particleLifetime;
-    particle.color = `hsl(${Math.random() * 50 + 150}, 100%, 50%)`;
+    particle.color = `hsl(${Math.random() * 50 + 60}, 100%, 50%)`;
     state.portal.particle.num = (state.portal.particle.num + 1) % MAX_PARTICLES;
   }
 
-  state.portal.particle.instances.forEach((particle) => {
+  for (let i = 0; i < MAX_PARTICLES; i++) {
+    const particle =
+      state.portal.particle.instances[
+        (state.portal.particle.num + (MAX_PARTICLES - i)) % MAX_PARTICLES
+      ]!;
     if (particle.lifeTime > 0) {
       particle.lifeTime -= dt;
       const rotationSpeed = 0.002;
       particle.angle += dt * rotationSpeed;
     }
-  });
+  }
 }
 
 export function draw(ctx: CanvasRenderingContext2D) {
-  const portalActive = state.run.playing.waveTimeRemaining <= 0;
-
-  if (!portalActive) return;
+  // const portalActive = state.run.playing.waveTimeRemaining <= 0;
+  // if (!portalActive) return;
 
   ctx.save();
   const tileX = state.portal.tileX;
@@ -74,30 +78,41 @@ export function draw(ctx: CanvasRenderingContext2D) {
     y: topLeftTileOnMap.y - tileY * 5,
   };
 
-  ctx.translate(worldPos.x + tileSize * 0.5, -(worldPos.y + tileSize * 0.5));
-  const scaleAmt = Math.sin(performance.now() * 0.004) * 0.1 + 1;
+  ctx.translate(worldPos.x + tileSize * 0.5, -(worldPos.y - tileSize * 0.5));
+  const scaleAmt = Math.sin(performance.now() * 0.002) * 0.1 + portalRadius;
   ctx.scale(scaleAmt, scaleAmt);
-  const rotAmt = Math.sin(performance.now() * 0.002) * 0.2;
-  ctx.rotate(rotAmt);
 
-  ctx.fillStyle = "blue";
+  // green
+  ctx.fillStyle = "hsl(120, 100%, 25%)";
   ctx.beginPath();
   ctx.arc(0, 0, tileSize * 0.5, 0, Math.PI * 2);
   ctx.fill();
 
   // draw particles
   state.portal.particle.instances.forEach((particle) => {
+    const fadeInTime = 50;
+    const timeAlive = particleLifetime - particle.lifeTime;
+    ctx.globalAlpha = Math.min(1, timeAlive / fadeInTime);
+
     if (particle.lifeTime > 0) {
-      const size = (particle.lifeTime / particleLifetime) * (tileSize * 0.05);
-      const radius = (particle.lifeTime / particleLifetime) * (tileSize * 0.5);
-      const xOff = Math.cos(particle.angle) * radius;
-      const yOff = Math.sin(particle.angle) * radius;
+      const size = (particle.lifeTime / particleLifetime) * (tileSize * 0.03);
+      const distFromCenter =
+        (particle.lifeTime / particleLifetime) * (tileSize * 0.5);
+      const xOff = Math.cos(particle.angle) * distFromCenter;
+      const yOff = Math.sin(particle.angle) * distFromCenter;
       ctx.fillStyle = particle.color;
       ctx.beginPath();
       ctx.arc(xOff, yOff, size, 0, Math.PI * 2);
       ctx.fill();
     }
   });
+
+  ctx.fillStyle = "black";
+  ctx.lineWidth = 0.25;
+  ctx.beginPath();
+  ctx.arc(0, 0, tileSize * 0.5, 0, Math.PI * 2);
+  ctx.stroke();
+
   ctx.restore();
 }
 

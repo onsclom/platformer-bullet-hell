@@ -56,7 +56,7 @@ export function update(dt: number) {
   Player.update(dt);
   Coin.update(dt);
   Portal.update(dt);
-  Triangle.update(dt);
+  // Triangle.update(dt);
   Camera.update(dt);
 
   clearInputs();
@@ -106,8 +106,8 @@ export function draw(ctx: CanvasRenderingContext2D) {
     ctx.translate(-state.camera.x, state.camera.y);
 
     Tiles.draw(ctx);
-    Player.draw(ctx);
     Portal.draw(ctx);
+    Player.draw(ctx);
     Coin.draw(ctx);
     Triangle.draw(ctx);
     ctx.restore();

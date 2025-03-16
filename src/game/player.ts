@@ -48,12 +48,12 @@ function update(dt: number) {
 function draw(ctx: CanvasRenderingContext2D) {
   if (state.player.invincibleTime > 0) ctx.globalAlpha = 0.5;
 
+  const { x, y } = gamePosToCanvasPos(
+    state.player.x - state.player.width / 2,
+    state.player.y + state.player.height / 2,
+  );
   {
     ctx.fillStyle = "#99f";
-    const { x, y } = gamePosToCanvasPos(
-      state.player.x - state.player.width / 2,
-      state.player.y + state.player.height / 2,
-    );
     ctx.fillRect(x, y, state.player.width, state.player.height);
   }
 
@@ -75,6 +75,10 @@ function draw(ctx: CanvasRenderingContext2D) {
     ctx.font = `${heartSize}px Arial`;
     ctx.fillText("♥", x, y + heartSize * 0.05);
   }
+
+  ctx.fillStyle = "black";
+  ctx.lineWidth = 0.3;
+  ctx.strokeRect(x, y, state.player.width, state.player.height);
 
   ctx.globalAlpha = 1;
 }

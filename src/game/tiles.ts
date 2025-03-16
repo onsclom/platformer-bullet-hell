@@ -89,7 +89,8 @@ function drawTile(
 
   const topLeft = topLeftTileOnMap;
   const randStrength = 0.5;
-  ctx.fillStyle = "green";
+  // brown
+  ctx.fillStyle = "hsl(30, 100%, 30%)";
 
   fillQuad(
     ctx,
@@ -105,7 +106,8 @@ function drawTile(
   ctx.lineWidth = 0.5;
 
   ctx.lineCap = "round";
-  ctx.strokeStyle = "darkgreen";
+  // ctx.strokeStyle = "hsl(30, 100%, 10%)";
+  ctx.strokeStyle = "black";
 
   const x1 = topLeft.x + x * tileSize + r1.x * randStrength;
   const y1 = topLeft.y - y * tileSize + r1.y * randStrength;
