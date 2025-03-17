@@ -38,10 +38,12 @@ export function draw(state: State, ctx: CanvasRenderingContext2D) {
   ctx.font = `${fontSize}px Arial`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  const percentRemaining = Math.floor(
+  const percentCompleted = Math.floor(
     100 - (state.run.playing.waveTimeRemaining / waveTimeLength) * 100,
   );
-  ctx.fillText(`${percentRemaining}%`, uiRect.width / 2, 0);
+  const text =
+    percentCompleted > 100 ? "go to the portal!" : `${percentCompleted}%`;
+  ctx.fillText(text, uiRect.width / 2, 0);
 }
 
 export default { create, update, draw };

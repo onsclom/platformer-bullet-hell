@@ -2,10 +2,11 @@ import { justPressed, clearInputs } from "../input";
 import Player from "./player";
 import Coin, { randomizeCoins } from "./coin";
 import Triangle from "./triangle";
-import Tiles, { randomLevel } from "./tiles";
+import Tiles from "./tiles";
 import Camera from "./camera";
 import WobbleEffect from "./wobble-effect";
 import Portal from "./portal";
+import Shop from "./shop";
 import UI from "./ui";
 
 export const loadAnimationLength = 1500;
@@ -34,7 +35,9 @@ export function create() {
     level: Tiles.create(),
     wobbleEffect: WobbleEffect.create(),
     portal: Portal.create(),
+    shop: Shop.create(),
   };
+
   randomizeCoins(state);
   return state;
 }
@@ -58,6 +61,8 @@ export function update(state: State, dt: number) {
   Portal.update(state, dt);
   // Triangle.update(state, dt);
   Camera.update(state, dt);
+
+  Shop.update(state, dt);
 
   clearInputs();
 }
@@ -117,5 +122,7 @@ export function draw(state: State, ctx: CanvasRenderingContext2D) {
   //////////////////
 
   ctx.restore();
+
   UI.draw(state, ctx);
+  // Shop.draw(state, ctx);
 }
